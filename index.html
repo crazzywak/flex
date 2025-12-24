@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@200..800&display=swap" rel="stylesheet">
+  <title>מחשבון משכורת חודשי</title>
+
+  <style>
+    body {
+      font-family: 'Assistant', sans-serif;
+      max-width: 650px;
+      margin: 20px auto;
+      padding: 0 15px;
+      line-height: 1.5;
+    }
+
+    .header-container {
+      display: flex;
+      /* Enables flexbox */
+      align-items: center;
+      justify-content: space-between;
+      /* Vertically aligns items in the center */
+      /* Adds space between the logo and text */
+    }
+
+    img {
+      max-width: 140px;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+
+    input {
+      width: 160px;
+      padding: 6px;
+      margin-top: 5px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 18px;
+      font-size: 15px;
+      margin-right: 10px;
+    }
+
+    .result {
+      margin-top: 25px;
+      font-size: 15px;
+    }
+
+    .salary {
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .note {
+      margin-top: 30px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        margin: 15px auto;
+        padding: 0 10px;
+      }
+
+      img {
+        max-width: 120px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      input {
+        width: 100%;
+        max-width: 200px;
+      }
+
+      button {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGO -->
+  <div class="header-container">
+    <h3>מחשבון משכורת חודשי</h3>
+    <img src="logo.png" alt="Company Logo" class="logo">
+  </div>
+
+  <label>
+    משכורת שעתית:
+    <input type="number" id="hourly" step="0.01">
+  </label>
+
+  <button onclick="calculateFromBase()">חשב</button>
+
+  <div class="result" id="result1"></div>
+
+  <hr>
+
+  <label>
+    משכורת חודשית רצויה:
+    <input type="number" id="desired" step="0.01">
+  </label>
+
+  <button onclick="calculateFromTarget()">חשב</button>
+  <div class="result" id="result2"></div>
+
+  <div class="note">
+    <strong>תנאים:</strong><br>
+    • 22 ימי עבודה בחודש ללא שישי<br>
+    • שבועות 2 ו-4 הם משמרות לילה<br>
+    • שעות נוספות יש רק במשמרות בוקר<br>
+  </div>
+
+  <script>
+    /* ---------- CONSTANTS (hour-based, multiplier-based) ---------- */
+
+    const REGULAR_WEEK_BASE_HOURS = (4 * 8.6) + 7.6;
+
+    // Extra hours (per day)
+    function extraDayPay(base) {
+      return (2 * base * 1.25) + (1 * base * 1.5);
+    }
+
+    // Night shift (12 hours)
+    function nightDayPay(base) {
+      return (
+        (3 * base * 1.0) +
+        (4 * base * 1.425) +
+        (2 * base * 1.781) +
+        (3 * base * 2.137)
+      );
+    }
+
+    /* ---------- MONTH CALCULATION ---------- */
+
+    function calculateMonth(base, nightShifts, allExtraDays) {
+      let total = 0;
+      
+      let dayWeekCount = 0;
+      for (let week = 1; week <= 4; week++) {
+        const isNightWeek = nightShifts-- > 0;
+
+        if (isNightWeek) {
+          total += 5 * nightDayPay(base);
+        } else {
+          dayWeekCount++;
+          total += REGULAR_WEEK_BASE_HOURS * base;
+          const extraDays = allExtraDays ? 5 : ((dayWeekCount % 2 != 0) ? 2 : 3);
+          total += extraDays * extraDayPay(base);
+        }
+      }
+
+      // +2 extra regular days (30-day month)
+      const regularDayBaseHours = 8.6;
+      for (let i = 0; i < 2; i++) {
+        total += (regularDayBaseHours * base) + extraDayPay(base);
+      }
+
+      return total;
+    }
+
+    /* ---------- BUTTON HANDLERS ---------- */
+
+    function calculateFromBase() {
+      const base = parseFloat(document.getElementById("hourly").value);
+      if (isNaN(base) || base <= 0) {
+        result1.textContent = "Please enter a valid base hourly salary.";
+        return;
+      }
+
+      const noNight = calculateMonth(base, 0);
+      const withNight = calculateMonth(base, 2);
+      const smt = calculateMonth(base, 0, true);
+      const special = calculateMonth(base, 1);
+
+      // 1. Create the formatter once
+      const shekelFormatter = new Intl.NumberFormat('he-IL', {
+        style: 'currency',
+        currency: 'ILS',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+
+      // 2. Apply it to your results
+      result1.innerHTML = getResultHtml(noNight, withNight, smt, special);
+    }
+
+    function calculateFromTarget() {
+      const target = parseFloat(document.getElementById("desired").value);
+      if (isNaN(target) || target <= 0) {
+        result2.textContent = "Please enter a valid desired monthly salary.";
+        return;
+      }
+
+      // Calculate factor by running calculation with base = 1
+      const factorNoNight = calculateMonth(1, 0);
+      const factorWithNight = calculateMonth(1, 2);
+      const factorSmt = calculateMonth(1, 0, true);
+      const factorSpecial = calculateMonth(1, 1);
+
+      const noNight = target / factorNoNight;
+      const withNight = target / factorWithNight;
+      const smt = target / factorSmt;
+      const special = target / factorSpecial;
+
+      result2.innerHTML = getResultHtml(noNight, withNight, smt, special);
+    }
+
+    function getResultHtml(noNight, withNight, smt, special) {
+      const shekel = new Intl.NumberFormat('he-IL', {
+        style: 'currency',
+        currency: 'ILS',
+        minimumFractionDigits: 2
+      });
+
+      return `
+    <table style="width: 100%; direction: rtl; border-collapse: collapse; font-family: sans-serif;">
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px 0;">שבוע בוקר + 2-3 ש"נ בשבוע:</td>
+        <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(noNight)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 0;">שבוע בוקר עם 5 ש"נ:</td>
+        <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(smt)}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px 0;">שבוע בוקר/שבוע לילה:</td>
+        <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(withNight)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 0;">חודש עם שבוע אחד של לילות:</td>
+        <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(special)}</td>
+      </tr>
+    </table>
+  `;
+    }
+  </script>
+
+</body>
+
+</html>
