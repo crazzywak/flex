@@ -88,6 +88,58 @@
         margin-right: 0;
         margin-bottom: 10px;
       }
+
+      /* Put all buttons in one row on mobile */
+      div[style*="text-align: left"] {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 5px !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+      }
+
+      div[style*="text-align: left"] > button:first-child {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        font-size: 12px !important;
+        padding: 5px 10px !important;
+        margin-bottom: 0 !important;
+      }
+
+      div[style*="text-align: left"] > div[style*="inline-block"] {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 5px !important;
+        flex: 1 !important;
+        margin-right: 0 !important;
+        margin-top: 0 !important;
+      }
+
+      div[style*="text-align: left"] > div[style*="inline-block"] button {
+        flex: 1 !important;
+        font-size: 11px !important;
+        padding: 8px 5px !important;
+        white-space: nowrap !important;
+        margin-bottom: 0 !important;
+      }
+
+      /* Keep input/button in same row on mobile - use smaller text */
+      div[id*="Mode"] > div[style*="display: flex"] > label {
+        margin-bottom: 0 !important;
+        font-size: 14px !important;
+      }
+
+      div[id*="Mode"] > div[style*="display: flex"] > input {
+        flex: 2 !important;
+        margin-top: 5px !important;
+      }
+
+      div[id*="Mode"] > div[style*="display: flex"] > button {
+        flex: 1 !important;
+        padding: 8px 5px !important;
+        font-size: 12px !important;
+        margin-top: 5px !important;
+      }
     }
   </style>
 </head>
@@ -101,27 +153,36 @@
   </div>
 
   <div style="text-align: left; margin-bottom: 15px;">
-    <button onclick="clearAll()" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">Clear</button>
+    <button onclick="clearAll()" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">נקה</button>
+    
+    <div style="display: inline-block; margin-right: 10px;">
+      <button id="baseModeBtn" onclick="switchMode('base')" style="font-size: 12px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">שכר שעתי</button>
+      <button id="targetModeBtn" onclick="switchMode('target')" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">משכורת חודשית רצויה</button>
+    </div>
   </div>
 
-  <label>
-    משכורת שעתית:
-    <input type="number" id="hourly" step="0.01">
-  </label>
+  <div id="baseMode">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+      <label style="margin: 0;">
+        משכורת שעתית:
+        <input type="number" id="hourly" step="0.01" style="margin-top: 5px;">
+      </label>
+      <button onclick="calculateFromBase()">חשב</button>
+    </div>
 
-  <button onclick="calculateFromBase()">חשב</button>
+    <div class="result" id="result1"></div>
+  </div>
 
-  <div class="result" id="result1"></div>
-
-  <hr>
-
-  <label>
-    משכורת חודשית רצויה:
-    <input type="number" id="desired" step="0.01">
-  </label>
-
-  <button onclick="calculateFromTarget()">חשב</button>
-  <div class="result" id="result2"></div>
+  <div id="targetMode" style="display: none;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+      <label style="margin: 0;">
+        משכורת חודשית רצויה:
+        <input type="number" id="desired" step="0.01" style="margin-top: 5px;">
+      </label>
+      <button onclick="calculateFromTarget()">חשב</button>
+    </div>
+    <div class="result" id="result2"></div>
+  </div>
 
   <div class="daily-details" id="dailyDetails" style="margin-top: 30px; font-size: 13px; color: #666; display: none;">
     <h4 style="margin-bottom: 15px; color: #333;">פירוט שכר לפי יום:</h4>
@@ -244,14 +305,42 @@
     /* ---------- BUTTON HANDLERS ---------- */
 
     let currentBaseRate = 0;
-let isTargetMode = false;
-let targetSalary = 0;
+    let isTargetMode = false;
+    let targetSalary = 0;
+
+    function switchMode(mode) {
+      clearAll();
+      if (mode === 'base') {
+        document.getElementById('baseMode').style.display = 'block';
+        document.getElementById('targetMode').style.display = 'none';
+        isTargetMode = false;
+        
+        // Update button styles
+        document.getElementById('baseModeBtn').style.backgroundColor = '#007bff';
+        document.getElementById('baseModeBtn').style.color = 'white';
+        document.getElementById('baseModeBtn').style.border = 'none';
+        document.getElementById('targetModeBtn').style.backgroundColor = '#f0f0f0';
+        document.getElementById('targetModeBtn').style.color = '#333';
+        document.getElementById('targetModeBtn').style.border = '1px solid #ccc';
+      } else {
+        document.getElementById('baseMode').style.display = 'none';
+        document.getElementById('targetMode').style.display = 'block';
+        isTargetMode = true;
+        
+        // Update button styles
+        document.getElementById('targetModeBtn').style.backgroundColor = '#007bff';
+        document.getElementById('targetModeBtn').style.color = 'white';
+        document.getElementById('targetModeBtn').style.border = 'none';
+        document.getElementById('baseModeBtn').style.backgroundColor = '#f0f0f0';
+        document.getElementById('baseModeBtn').style.color = '#333';
+        document.getElementById('baseModeBtn').style.border = '1px solid #ccc';
+      }
+    }
 
     function calculateFromBase() {
       const base = parseFloat(document.getElementById("hourly").value);
       if (isNaN(base) || base <= 0) {
         result1.textContent = "Please enter a valid base hourly salary.";
-        return;
       }
 
       currentBaseRate = base;
