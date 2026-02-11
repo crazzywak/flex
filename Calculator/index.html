@@ -100,6 +100,10 @@
     <img src="logo.png" alt="Company Logo" class="logo">
   </div>
 
+  <div style="text-align: left; margin-bottom: 15px;">
+    <button onclick="clearAll()" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">Clear</button>
+  </div>
+
   <label>
     משכורת שעתית:
     <input type="number" id="hourly" step="0.01">
@@ -118,6 +122,11 @@
 
   <button onclick="calculateFromTarget()">חשב</button>
   <div class="result" id="result2"></div>
+
+  <div class="daily-details" id="dailyDetails" style="margin-top: 30px; font-size: 13px; color: #666; display: none;">
+    <h4 style="margin-bottom: 15px; color: #333;">פירוט שכר לפי יום:</h4>
+    <div id="dailyBreakdown"></div>
+  </div>
 
   <div class="note">
     <strong>תנאים:</strong><br>
@@ -174,7 +183,69 @@
       return total;
     }
 
+    function calculateDailyBreakdown(base, nightShifts, allExtraDays) {
+      const days = [];
+      let dayWeekCount = 0;
+      
+      for (let week = 1; week <= 4; week++) {
+        const isNightWeek = nightShifts-- > 0;
+
+        if (isNightWeek) {
+          // Night shift week - 5 nights
+          for (let day = 1; day <= 5; day++) {
+            days.push({
+              type: 'לילה',
+              pay: nightDayPay(base),
+              description: `שבוע ${week} - יום ${day} (לילה)`
+            });
+          }
+        } else {
+          dayWeekCount++;
+          // Regular week
+          // 4 regular days
+          for (let day = 1; day <= 4; day++) {
+            days.push({
+              type: 'רגיל',
+              pay: 8.6 * base,
+              description: `שבוע ${week} - יום ${day} (רגיל)`
+            });
+          }
+          // Friday (7.6 hours)
+          days.push({
+            type: 'רגיל',
+            pay: 7.6 * base,
+            description: `שבוע ${week} - יום 5 (שישי)`
+          });
+          
+          // Extra days
+          const extraDays = allExtraDays ? 5 : ((dayWeekCount % 2 != 0) ? 2 : 3);
+          for (let day = 1; day <= extraDays; day++) {
+            days.push({
+              type: 'שעות נוספות',
+              pay: extraDayPay(base),
+              description: `שבוע ${week} - שעות נוספות ${day}`
+            });
+          }
+        }
+      }
+
+      // +2 extra regular days (30-day month)
+      for (let i = 1; i <= 2; i++) {
+        days.push({
+          type: 'רגיל+שעות נוספות',
+          pay: (8.6 * base) + extraDayPay(base),
+          description: `יום נוסף ${i}`
+        });
+      }
+
+      return days;
+    }
+
     /* ---------- BUTTON HANDLERS ---------- */
+
+    let currentBaseRate = 0;
+let isTargetMode = false;
+let targetSalary = 0;
 
     function calculateFromBase() {
       const base = parseFloat(document.getElementById("hourly").value);
@@ -182,6 +253,8 @@
         result1.textContent = "Please enter a valid base hourly salary.";
         return;
       }
+
+      currentBaseRate = base;
 
       const noNight = calculateMonth(base, 0);
       const withNight = calculateMonth(base, 2);
@@ -198,6 +271,9 @@
 
       // 2. Apply it to your results
       result1.innerHTML = getResultHtml(noNight, withNight, smt, special);
+      
+      // 3. Show daily breakdown for the first scenario (no night shifts)
+      showDailyBreakdown(base, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע');
     }
 
     function calculateFromTarget() {
@@ -206,6 +282,10 @@
         result2.textContent = "Please enter a valid desired monthly salary.";
         return;
       }
+
+      // Set target mode
+      isTargetMode = true;
+      targetSalary = target;
 
       // Calculate factor by running calculation with base = 1
       const factorNoNight = calculateMonth(1, 0);
@@ -218,7 +298,12 @@
       const smt = target / factorSmt;
       const special = target / factorSpecial;
 
+      currentBaseRate = noNight;
+
       result2.innerHTML = getResultHtml(noNight, withNight, smt, special);
+      
+      // Show daily breakdown for the calculated hourly rate (first scenario)
+      showDailyBreakdown(noNight, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע');
     }
 
     function getResultHtml(noNight, withNight, smt, special) {
@@ -230,24 +315,96 @@
 
       return `
     <table style="width: 100%; direction: rtl; border-collapse: collapse; font-family: sans-serif;">
-      <tr style="border-bottom: 1px solid #eee;">
+      <tr style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="updateDailyBreakdown(0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')">
         <td style="padding: 10px 0;">שבוע בוקר + 2-3 ש"נ בשבוע:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(noNight)}</td>
       </tr>
-      <tr>
+      <tr style="cursor: pointer;" onclick="updateDailyBreakdown(0, true, 'שבוע בוקר עם 5 ש&quot;נ')">
         <td style="padding: 10px 0;">שבוע בוקר עם 5 ש"נ:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(smt)}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #eee;">
+      <tr style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="updateDailyBreakdown(2, false, 'שבוע בוקר/שבוע לילה')">
         <td style="padding: 10px 0;">שבוע בוקר/שבוע לילה:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(withNight)}</td>
       </tr>
-      <tr>
+      <tr style="cursor: pointer;" onclick="updateDailyBreakdown(1, false, 'חודש עם שבוע אחד של לילות')">
         <td style="padding: 10px 0;">חודש עם שבוע אחד של לילות:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(special)}</td>
       </tr>
     </table>
   `;
+    }
+
+    function showDailyBreakdown(base, nightShifts, allExtraDays, scenarioName) {
+      const days = calculateDailyBreakdown(base, nightShifts, allExtraDays);
+      const shekel = new Intl.NumberFormat('he-IL', {
+        style: 'currency',
+        currency: 'ILS',
+        minimumFractionDigits: 2
+      });
+
+      let html = `
+        <div style="margin-bottom: 10px; font-weight: bold; color: #333;">
+          ${scenarioName} | שכר שעתי: ${shekel.format(base)}
+        </div>
+        <table style="width: 100%; direction: rtl; border-collapse: collapse; font-size: 12px;">
+          <tr style="border-bottom: 1px solid #ddd; background-color: #f9f9f9;">
+            <th style="padding: 8px 5px; text-align: right;">יום</th>
+            <th style="padding: 8px 5px; text-align: right;">סוג</th>
+            <th style="padding: 8px 5px; text-align: left;">שכר</th>
+          </tr>
+      `;
+
+      days.forEach((day, index) => {
+        const rowStyle = index % 2 === 0 ? 'background-color: #fafafa;' : '';
+        html += `
+          <tr style="border-bottom: 1px solid #eee; ${rowStyle}">
+            <td style="padding: 6px 5px;">${day.description}</td>
+            <td style="padding: 6px 5px;">${day.type}</td>
+            <td style="padding: 6px 5px; text-align: left; font-weight: bold;">${shekel.format(day.pay)}</td>
+          </tr>
+        `;
+      });
+
+      const total = days.reduce((sum, day) => sum + day.pay, 0);
+      html += `
+          <tr style="border-top: 2px solid #333; font-weight: bold;">
+            <td colspan="2" style="padding: 8px 5px;">סה"כ:</td>
+            <td style="padding: 8px 5px; text-align: left;">${shekel.format(total)}</td>
+          </tr>
+        </table>
+      `;
+
+      document.getElementById('dailyDetails').style.display = 'block';
+      document.getElementById('dailyBreakdown').innerHTML = html;
+    }
+
+    function updateDailyBreakdown(nightShifts, allExtraDays, scenarioName) {
+      if (currentBaseRate <= 0) {
+        return;
+      }
+      
+      if (isTargetMode) {
+        // In target mode, calculate the hourly rate needed for this scenario to reach the target salary
+        const factor = calculateMonth(1, nightShifts, allExtraDays);
+        const hourlyRate = targetSalary / factor;
+        showDailyBreakdown(hourlyRate, nightShifts, allExtraDays, scenarioName);
+      } else {
+        // In base mode, use the current base rate
+        showDailyBreakdown(currentBaseRate, nightShifts, allExtraDays, scenarioName);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("hourly").value = "";
+      document.getElementById("desired").value = "";
+      document.getElementById("result1").innerHTML = "";
+      document.getElementById("result2").innerHTML = "";
+      document.getElementById("dailyDetails").style.display = "none";
+      document.getElementById("dailyBreakdown").innerHTML = "";
+      currentBaseRate = 0;
+      isTargetMode = false;
+      targetSalary = 0;
     }
   </script>
 
