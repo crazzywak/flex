@@ -223,9 +223,10 @@
       
       let dayWeekCount = 0;
       for (let week = 1; week <= 4; week++) {
-        const isNightWeek = nightShifts-- > 0;
+        const isNightWeek = (nightShifts > 0 && week % 2 === 0);
 
         if (isNightWeek) {
+          nightShifts--;
           total += 5 * nightDayPay(base);
         } else {
           dayWeekCount++;
@@ -249,9 +250,10 @@
       let dayWeekCount = 0;
       
       for (let week = 1; week <= 4; week++) {
-        const isNightWeek = nightShifts-- > 0;
+        const isNightWeek = (nightShifts > 0 && week % 2 === 0);
 
         if (isNightWeek) {
+          nightShifts--;
           // Night shift week - 5 nights
           for (let day = 1; day <= 5; day++) {
             days.push({
