@@ -307,6 +307,7 @@
     let currentBaseRate = 0;
     let isTargetMode = false;
     let targetSalary = 0;
+    let selectedRow = null;
 
     function switchMode(mode) {
       clearAll();
@@ -398,19 +399,19 @@
 
       return `
     <table style="width: 100%; direction: rtl; border-collapse: collapse; font-family: sans-serif;">
-      <tr style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="updateDailyBreakdown(0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')">
+      <tr id="row1" style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectRow(1, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')">
         <td style="padding: 10px 0;">שבוע בוקר + 2-3 ש"נ בשבוע:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(noNight)}</td>
       </tr>
-      <tr style="cursor: pointer;" onclick="updateDailyBreakdown(0, true, 'שבוע בוקר עם 5 ש&quot;נ')">
+      <tr id="row2" style="cursor: pointer;" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')">
         <td style="padding: 10px 0;">שבוע בוקר עם 5 ש"נ:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(smt)}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="updateDailyBreakdown(2, false, 'שבוע בוקר/שבוע לילה')">
+      <tr id="row3" style="border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')">
         <td style="padding: 10px 0;">שבוע בוקר/שבוע לילה:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(withNight)}</td>
       </tr>
-      <tr style="cursor: pointer;" onclick="updateDailyBreakdown(1, false, 'חודש עם שבוע אחד של לילות')">
+      <tr id="row4" style="cursor: pointer;" onclick="selectRow(4, 1, false, 'חודש עם שבוע אחד של לילות')">
         <td style="padding: 10px 0;">חודש עם שבוע אחד של לילות:</td>
         <td style="padding: 10px 0; text-align: left; font-weight: bold;">${shekel.format(special)}</td>
       </tr>
@@ -462,6 +463,28 @@
       document.getElementById('dailyBreakdown').innerHTML = html;
     }
 
+    function selectRow(rowId, nightShifts, allExtraDays, scenarioName) {
+      // Remove blue background from previously selected row
+      if (selectedRow) {
+        const prevRow = document.getElementById(`row${selectedRow}`);
+        if (prevRow) {
+          prevRow.style.backgroundColor = '';
+          prevRow.style.color = '';
+        }
+      }
+      
+      // Add blue background to newly selected row
+      const currentRow = document.getElementById(`row${rowId}`);
+      if (currentRow) {
+        currentRow.style.backgroundColor = '#007bff';
+        currentRow.style.color = 'white';
+        selectedRow = rowId;
+      }
+      
+      // Update daily breakdown
+      updateDailyBreakdown(nightShifts, allExtraDays, scenarioName);
+    }
+
     function updateDailyBreakdown(nightShifts, allExtraDays, scenarioName) {
       if (currentBaseRate <= 0) {
         return;
@@ -488,6 +511,16 @@
       currentBaseRate = 0;
       isTargetMode = false;
       targetSalary = 0;
+      selectedRow = null;
+      
+      // Reset any selected row background color
+      for (let i = 1; i <= 4; i++) {
+        const row = document.getElementById(`row${i}`);
+        if (row) {
+          row.style.backgroundColor = '';
+          row.style.color = '';
+        }
+      }
     }
   </script>
 
