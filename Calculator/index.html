@@ -342,7 +342,7 @@
     function calculateFromBase() {
       const base = parseFloat(document.getElementById("hourly").value);
       if (isNaN(base) || base <= 0) {
-        result1.textContent = "Please enter a valid base hourly salary.";
+        result1.textContent = "";
       }
 
       currentBaseRate = base;
