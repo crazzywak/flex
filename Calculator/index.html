@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@200..800&display=swap" rel="stylesheet">
-  <title>מחשבון משכורת חודשי</title>
+  <title>מחשבון משכורת חודשי ברוטו</title>
 
   <style>
     body {
@@ -148,7 +148,7 @@
 
   <!-- LOGO -->
   <div class="header-container">
-    <h3>מחשבון משכורת חודשי</h3>
+    <h3>מחשבון משכורת חודשי ברוטו</h3>
     <img src="logo.png" alt="Company Logo" class="logo">
   </div>
 
@@ -192,7 +192,6 @@
   <div class="note">
     <strong>תנאים:</strong><br>
     • 22 ימי עבודה בחודש כולל שישי פעמיים בחודש<br>
-    • שבועות 2 ו-4 הם משמרות לילה<br>
     • שעות נוספות יש רק במשמרות בוקר<br>
   </div>
 
@@ -268,14 +267,14 @@
           // 4 regular days
           for (let day = 1; day <= 4; day++) {
             days.push({
-              type: 'רגיל',
+              type: 'בוקר',
               pay: 8.6 * base,
-              description: `שבוע ${week} - יום ${day} (רגיל)`
+              description: `שבוע ${week} - יום ${day} (בוקר)`
             });
           }
           // Thursday (7.6 hours)
           days.push({
-            type: 'רגיל',
+            type: 'בוקר',
             pay: 7.6 * base,
             description: `שבוע ${week} - יום 5 (חמישי)`
           });
@@ -295,7 +294,7 @@
       // +2 extra regular days (30-day month)
       for (let i = 1; i <= 2; i++) {
         days.push({
-          type: 'רגיל+שעות נוספות',
+          type: 'בוקר+שעות נוספות',
           pay: (8.6 * base) + extraDayPay(base),
           description: `יום נוסף ${i}`
         });
