@@ -271,11 +271,11 @@
               description: `שבוע ${week} - יום ${day} (רגיל)`
             });
           }
-          // Friday (7.6 hours)
+          // Thursday (7.6 hours)
           days.push({
             type: 'רגיל',
             pay: 7.6 * base,
-            description: `שבוע ${week} - יום 5 (שישי)`
+            description: `שבוע ${week} - יום 5 (חמישי)`
           });
           
           // Extra days
@@ -360,9 +360,6 @@
 
       // 2. Apply it to your results
       result1.innerHTML = getResultHtml(noNight, withNight, smt, special);
-      
-      // 3. Show daily breakdown for the first scenario (no night shifts)
-      showDailyBreakdown(base, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע');
     }
 
     function calculateFromTarget() {
@@ -390,9 +387,6 @@
       currentBaseRate = noNight;
 
       result2.innerHTML = getResultHtml(noNight, withNight, smt, special);
-      
-      // Show daily breakdown for the calculated hourly rate (first scenario)
-      showDailyBreakdown(noNight, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע');
     }
 
     function getResultHtml(noNight, withNight, smt, special) {
