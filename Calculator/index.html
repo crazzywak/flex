@@ -191,7 +191,7 @@
 
   <div class="note">
     <strong>תנאים:</strong><br>
-    • 22 ימי עבודה בחודש ללא שישי<br>
+    • 22 ימי עבודה בחודש כולל שישי פעמיים בחודש<br>
     • שבועות 2 ו-4 הם משמרות לילה<br>
     • שעות נוספות יש רק במשמרות בוקר<br>
   </div>
@@ -443,7 +443,35 @@
 
       days.forEach((day, index) => {
         const rowStyle = index % 2 === 0 ? 'background-color: #fafafa;' : '';
-        html += `
+        
+        // Check if this is the start of a new week (not the first day) and add separator
+        let separatorRow = '';
+        if (index > 0) {
+          const currentWeekMatch = day.description.match(/שבוע (\d+)/);
+          const previousWeekMatch = days[index - 1].description.match(/שבוע (\d+)/);
+          
+          if (currentWeekMatch && previousWeekMatch) {
+            const currentWeek = parseInt(currentWeekMatch[1]);
+            const previousWeek = parseInt(previousWeekMatch[1]);
+            if (currentWeek !== previousWeek) {
+              separatorRow = `
+                <tr style="border-top: 2px solid #666;">
+                  <td colspan="3" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע ${currentWeek} ---</td>
+                </tr>
+              `;
+            }
+          }
+          // Add separator before extra days (when transitioning from week days to "יום נוסף")
+          else if (!currentWeekMatch && previousWeekMatch) {
+            separatorRow = `
+              <tr style="border-top: 2px solid #666;">
+                <td colspan="3" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- ימי שישי ---</td>
+              </tr>
+            `;
+          }
+        }
+        
+        html += separatorRow + `
           <tr style="border-bottom: 1px solid #eee; ${rowStyle}">
             <td style="padding: 6px 5px;">${day.description}</td>
             <td style="padding: 6px 5px;">${day.type}</td>
