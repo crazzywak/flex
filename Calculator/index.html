@@ -110,7 +110,7 @@
         flex-wrap: wrap !important;
       }
 
-      div[style*="text-align: left"] > button:first-child {
+      div[style*="text-align: left"]>button:first-child {
         flex: 0 0 auto !important;
         width: auto !important;
         font-size: 12px !important;
@@ -118,7 +118,7 @@
         margin-bottom: 0 !important;
       }
 
-      div[style*="text-align: left"] > div[style*="inline-block"] {
+      div[style*="text-align: left"]>div[style*="inline-block"] {
         display: flex !important;
         flex-direction: row !important;
         gap: 5px !important;
@@ -127,7 +127,7 @@
         margin-top: 0 !important;
       }
 
-      div[style*="text-align: left"] > div[style*="inline-block"] button {
+      div[style*="text-align: left"]>div[style*="inline-block"] button {
         flex: 1 !important;
         font-size: 11px !important;
         padding: 8px 5px !important;
@@ -136,17 +136,17 @@
       }
 
       /* Keep input/button in same row on mobile - use smaller text */
-      div[id*="Mode"] > div[style*="display: flex"] > label {
+      div[id*="Mode"]>div[style*="display: flex"]>label {
         margin-bottom: 0 !important;
         font-size: 14px !important;
       }
 
-      div[id*="Mode"] > div[style*="display: flex"] > input {
+      div[id*="Mode"]>div[style*="display: flex"]>input {
         flex: 2 !important;
         margin-top: 5px !important;
       }
 
-      div[id*="Mode"] > div[style*="display: flex"] > button {
+      div[id*="Mode"]>div[style*="display: flex"]>button {
         flex: 1 !important;
         padding: 8px 5px !important;
         font-size: 12px !important;
@@ -164,11 +164,16 @@
   </div>
 
   <div style="text-align: left; margin-bottom: 15px;">
-    <button onclick="clearAll()" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">נקה</button>
-    
+    <button onclick="clearAll()"
+      style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">נקה</button>
+
     <div style="display: inline-block; margin-right: 10px;">
-      <button id="baseModeBtn" onclick="switchMode('base')" style="font-size: 12px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">שכר שעתי</button>
-      <button id="targetModeBtn" onclick="switchMode('target')" style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">משכורת חודשית רצויה</button>
+      <button id="baseModeBtn" onclick="switchMode('base')"
+        style="font-size: 12px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">שכר
+        שעתי</button>
+      <button id="targetModeBtn" onclick="switchMode('target')"
+        style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">משכורת
+        חודשית רצויה</button>
     </div>
   </div>
 
@@ -230,7 +235,7 @@
 
     function calculateMonth(base, nightShifts, allExtraDays) {
       let total = 0;
-      
+
       let dayWeekCount = 0;
       for (let week = 1; week <= 4; week++) {
         const isNightWeek = (nightShifts > 0 && week % 2 === 0);
@@ -258,7 +263,7 @@
     function calculateDailyBreakdown(base, nightShifts, allExtraDays) {
       const days = [];
       let dayWeekCount = 0;
-      
+
       for (let week = 1; week <= 4; week++) {
         const isNightWeek = (nightShifts > 0 && week % 2 === 0);
 
@@ -269,7 +274,9 @@
             days.push({
               type: 'לילה',
               pay: nightDayPay(base),
-              description: `שבוע ${week} - יום ${day} (לילה)`
+              hours: 12,
+              description: `יום ${day}`,
+              week: week
             });
           }
         } else {
@@ -280,23 +287,29 @@
             days.push({
               type: 'בוקר',
               pay: 8.6 * base,
-              description: `שבוע ${week} - יום ${day} (בוקר)`
+              hours: 8.6,
+              description: `יום ${day}`,
+              week: week
             });
           }
           // Thursday (7.6 hours)
           days.push({
             type: 'בוקר',
             pay: 7.6 * base,
-            description: `שבוע ${week} - יום 5 (חמישי)`
+            hours: 7.6,
+            description: `יום 5`,
+            week: week
           });
-          
+
           // Extra days
           const extraDays = allExtraDays ? 5 : ((dayWeekCount % 2 != 0) ? 2 : 3);
           for (let day = 1; day <= extraDays; day++) {
             days.push({
-              type: 'שעות נוספות',
+              type: '',
               pay: extraDayPay(base),
-              description: `שבוע ${week} - שעות נוספות ${day}`
+              hours: 3,
+              description: `ש"נ ${day}`,
+              week: week
             });
           }
         }
@@ -307,7 +320,9 @@
         days.push({
           type: 'בוקר+שעות נוספות',
           pay: (8.6 * base) + extraDayPay(base),
-          description: `יום נוסף ${i}`
+          hours: 8.6 + 3,
+          description: `יום נוסף ${i}`,
+          week: null
         });
       }
 
@@ -327,7 +342,7 @@
         document.getElementById('baseMode').style.display = 'block';
         document.getElementById('targetMode').style.display = 'none';
         isTargetMode = false;
-        
+
         // Update button styles
         document.getElementById('baseModeBtn').style.backgroundColor = '#007bff';
         document.getElementById('baseModeBtn').style.color = 'white';
@@ -339,7 +354,7 @@
         document.getElementById('baseMode').style.display = 'none';
         document.getElementById('targetMode').style.display = 'block';
         isTargetMode = true;
-        
+
         // Update button styles
         document.getElementById('targetModeBtn').style.backgroundColor = '#007bff';
         document.getElementById('targetModeBtn').style.color = 'white';
@@ -417,13 +432,13 @@
         <span>שבוע בוקר + 2-3 ש"נ בשבוע:</span>
         <span style="font-weight: bold;">${shekel.format(noNight)} ₪</span>
       </button>
-      <button id="row2" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
-        <span>שבוע בוקר עם 5 ש"נ:</span>
-        <span style="font-weight: bold;">${shekel.format(smt)} ₪</span>
-      </button>
       <button id="row3" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')" class="calc-button">
         <span>שבוע בוקר/שבוע לילה:</span>
         <span style="font-weight: bold;">${shekel.format(withNight)} ₪</span>
+      </button>
+      <button id="row2" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
+        <span>שבוע בוקר עם 5 ש"נ:</span>
+        <span style="font-weight: bold;">${shekel.format(smt)} ₪</span>
       </button>
       <button id="row4" onclick="selectRow(4, 1, false, 'חודש עם שבוע אחד של לילות')" class="calc-button">
         <span>חודש עם שבוע אחד של לילות:</span>
@@ -449,44 +464,49 @@
           <tr style="border-bottom: 1px solid #ddd; background-color: #f9f9f9;">
             <th style="padding: 8px 5px; text-align: right;">יום</th>
             <th style="padding: 8px 5px; text-align: right;">סוג</th>
+            <th style="padding: 8px 5px; text-align: right;">שעות</th>
             <th style="padding: 8px 5px; text-align: left;">שכר</th>
           </tr>
       `;
 
       days.forEach((day, index) => {
         const rowStyle = index % 2 === 0 ? 'background-color: #fafafa;' : '';
-        
-        // Check if this is the start of a new week (not the first day) and add separator
+
+        // Check if this is the start of a new week and add separator
         let separatorRow = '';
-        if (index > 0) {
-          const currentWeekMatch = day.description.match(/שבוע (\d+)/);
-          const previousWeekMatch = days[index - 1].description.match(/שבוע (\d+)/);
-          
-          if (currentWeekMatch && previousWeekMatch) {
-            const currentWeek = parseInt(currentWeekMatch[1]);
-            const previousWeek = parseInt(previousWeekMatch[1]);
-            if (currentWeek !== previousWeek) {
-              separatorRow = `
+        if (index === 0) {
+          // First week separator
+          separatorRow = `
+            <tr style="border-top: 2px solid #666;">
+              <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע 1 ---</td>
+            </tr>
+          `;
+        } else if (index > 0) {
+          const currentWeek = day.week;
+          const previousWeek = days[index - 1].week;
+
+          if (currentWeek !== null && previousWeek !== null && currentWeek !== previousWeek) {
+            separatorRow = `
                 <tr style="border-top: 2px solid #666;">
-                  <td colspan="3" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע ${currentWeek} ---</td>
+                  <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע ${currentWeek} ---</td>
                 </tr>
               `;
-            }
           }
           // Add separator before extra days (when transitioning from week days to "יום נוסף")
-          else if (!currentWeekMatch && previousWeekMatch) {
+          else if (currentWeek === null && previousWeek !== null) {
             separatorRow = `
               <tr style="border-top: 2px solid #666;">
-                <td colspan="3" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- ימי שישי ---</td>
+                <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- ימי שישי ---</td>
               </tr>
             `;
           }
         }
-        
+
         html += separatorRow + `
           <tr style="border-bottom: 1px solid #eee; ${rowStyle}">
             <td style="padding: 6px 5px;">${day.description}</td>
             <td style="padding: 6px 5px;">${day.type}</td>
+            <td style="padding: 6px 5px;">${day.hours}</td>
             <td style="padding: 6px 5px; text-align: left; font-weight: bold;">${shekel.format(day.pay)}</td>
           </tr>
         `;
@@ -501,11 +521,11 @@
         </table>
       `;
 
-          document.getElementById('dailyDetails').style.display = 'block';
-          document.getElementById('dailyBreakdown').innerHTML = html;
-        }
+      document.getElementById('dailyDetails').style.display = 'block';
+      document.getElementById('dailyBreakdown').innerHTML = html;
+    }
 
-        function selectRow(rowId, nightShifts, allExtraDays, scenarioName) {
+    function selectRow(rowId, nightShifts, allExtraDays, scenarioName) {
       // Remove selection style from previously selected row
       if (selectedRow) {
         const prevRow = document.getElementById(`row${selectedRow}`);
@@ -515,7 +535,7 @@
           prevRow.style.border = '1px solid #ccc';
         }
       }
-      
+
       // Add selection style to newly selected row (matching mode button style)
       const currentRow = document.getElementById(`row${rowId}`);
       if (currentRow) {
@@ -524,7 +544,7 @@
         currentRow.style.border = 'none';
         selectedRow = rowId;
       }
-      
+
       // Update daily breakdown
       updateDailyBreakdown(nightShifts, allExtraDays, scenarioName);
     }
@@ -533,7 +553,7 @@
       if (currentBaseRate <= 0) {
         return;
       }
-      
+
       if (isTargetMode) {
         // In target mode, calculate the hourly rate needed for this scenario to reach the target salary
         const factor = calculateMonth(1, nightShifts, allExtraDays);
@@ -556,7 +576,7 @@
       isTargetMode = false;
       targetSalary = 0;
       selectedRow = null;
-      
+
       // Reset any selected row background color
       for (let i = 1; i <= 4; i++) {
         const row = document.getElementById(`row${i}`);
