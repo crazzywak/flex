@@ -404,7 +404,8 @@
 
     function getResultHtml(noNight, withNight, smt, special) {
       const shekel = new Intl.NumberFormat('he-IL', {
-        minimumFractionDigits: 2
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
       });
 
       return `
@@ -414,19 +415,19 @@
     <div style="display: flex; flex-direction: column; gap: 3px; width: 100%;">
       <button id="row1" onclick="selectRow(1, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')" class="calc-button">
         <span>שבוע בוקר + 2-3 ש"נ בשבוע:</span>
-        <span style="font-weight: bold;">${shekel.format(noNight)}</span>
+        <span style="font-weight: bold;">${shekel.format(noNight)} ₪</span>
       </button>
       <button id="row2" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
         <span>שבוע בוקר עם 5 ש"נ:</span>
-        <span style="font-weight: bold;">${shekel.format(smt)}</span>
+        <span style="font-weight: bold;">${shekel.format(smt)} ₪</span>
       </button>
       <button id="row3" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')" class="calc-button">
         <span>שבוע בוקר/שבוע לילה:</span>
-        <span style="font-weight: bold;">${shekel.format(withNight)}</span>
+        <span style="font-weight: bold;">${shekel.format(withNight)} ₪</span>
       </button>
       <button id="row4" onclick="selectRow(4, 1, false, 'חודש עם שבוע אחד של לילות')" class="calc-button">
         <span>חודש עם שבוע אחד של לילות:</span>
-        <span style="font-weight: bold;">${shekel.format(special)}</span>
+        <span style="font-weight: bold;">${shekel.format(special)} ₪</span>
       </button>
     </div>
   `;
