@@ -67,6 +67,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
       padding: 0 12px;
       background-color: #f0f0f0;
       color: #333;
@@ -75,6 +76,19 @@
       cursor: pointer;
       text-align: right;
       font-size: 14px;
+    }
+
+    .money-span {
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .button-1 {
+      background-color: #FFCC99;
+    }
+
+    .button-2 {
+      background-color: #99CC00;
     }
 
     @media (max-width: 600px) {
@@ -428,21 +442,21 @@
       לחץ על מנת לראות פירוט שכר לפי יום
     </div>
     <div style="display: flex; flex-direction: column; gap: 3px; width: 100%;">
-      <button id="row1" onclick="selectRow(1, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')" class="calc-button">
+      <button id="row1" onclick="selectRow(1, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')" class="calc-button button-1">
         <span>שבוע בוקר + 2-3 ש"נ בשבוע:</span>
-        <span style="font-weight: bold;">${shekel.format(noNight)} ₪</span>
+        <span class="money-span">${shekel.format(noNight)} ₪</span>
       </button>
-      <button id="row3" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')" class="calc-button">
+      <button id="row3" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')" class="calc-button button-2">
         <span>שבוע בוקר/שבוע לילה:</span>
-        <span style="font-weight: bold;">${shekel.format(withNight)} ₪</span>
+        <span class="money-span">${shekel.format(withNight)} ₪</span>
       </button>
       <button id="row2" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
-        <span>שבוע בוקר עם 5 ש"נ:</span>
-        <span style="font-weight: bold;">${shekel.format(smt)} ₪</span>
+        <span>שבוע בוקר עם 5 ש"נ<br/>(מחלקת SMT בוקר):</span>
+        <span class="money-span">${shekel.format(smt)} ₪</span>
       </button>
       <button id="row4" onclick="selectRow(4, 1, false, 'חודש עם שבוע אחד של לילות')" class="calc-button">
-        <span>חודש עם שבוע אחד של לילות:</span>
-        <span style="font-weight: bold;">${shekel.format(special)} ₪</span>
+        <span>חודש עם שבוע אחד של לילות<br/>(מחלקת SMT 3 תחת ודים קנסבקי):</span>
+        <span class="money-span">${shekel.format(special)} ₪</span>
       </button>
     </div>
   `;
@@ -530,9 +544,9 @@
       if (selectedRow) {
         const prevRow = document.getElementById(`row${selectedRow}`);
         if (prevRow) {
-          prevRow.style.backgroundColor = '#f0f0f0';
-          prevRow.style.color = '#333';
-          prevRow.style.border = '1px solid #ccc';
+          prevRow.style.backgroundColor = '';
+          prevRow.style.color = '';
+          prevRow.style.border = '';
         }
       }
 
@@ -581,9 +595,9 @@
       for (let i = 1; i <= 4; i++) {
         const row = document.getElementById(`row${i}`);
         if (row) {
-          row.style.backgroundColor = '#f0f0f0';
-          row.style.color = '#333';
-          row.style.border = '1px solid #ccc';
+          row.style.backgroundColor = '';
+          row.style.color = '';
+          row.style.border = '';
         }
       }
     }
