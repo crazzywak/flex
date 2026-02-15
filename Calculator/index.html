@@ -235,6 +235,10 @@
       return (2 * base * 1.25) + (1 * base * 1.5);
     }
 
+    function extraDayPayFriday(base) {
+      return (2 * base * 1.25) + (4 * base * 1.5);
+    }
+
     // Night shift (12 hours)
     function nightDayPay(base) {
       return (
@@ -268,7 +272,7 @@
       // +2 extra regular days (30-day month)
       const regularDayBaseHours = 8.6;
       for (let i = 0; i < 2; i++) {
-        total += (regularDayBaseHours * base) + extraDayPay(base);
+        total += extraDayPayFriday(base);
       }
 
       return total;
@@ -333,8 +337,8 @@
       for (let i = 1; i <= 2; i++) {
         days.push({
           type: 'בוקר+שעות נוספות',
-          pay: (8.6 * base) + extraDayPay(base),
-          hours: 8.6 + 3,
+          pay: extraDayPayFriday(base),
+          hours: 6,
           description: `יום נוסף ${i}`,
           week: null
         });
