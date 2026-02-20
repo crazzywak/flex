@@ -1,612 +1,1445 @@
 <!DOCTYPE html>
+
 <html lang="he" dir="rtl">
 
+
+
 <head>
+
   <meta charset="UTF-8" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@200..800&display=swap" rel="stylesheet">
+
   <title>מחשבון משכורת חודשי ברוטו</title>
 
-  <style>
-    body {
-      font-family: 'Assistant', sans-serif;
-      max-width: 650px;
-      margin: 20px auto;
-      padding: 0 15px;
-      line-height: 1.5;
-    }
 
-    .header-container {
-      display: flex;
-      /* Enables flexbox */
-      align-items: center;
-      justify-content: space-between;
-      /* Vertically aligns items in the center */
-      /* Adds space between the logo and text */
-    }
 
-    img {
-      max-width: 140px;
-    }
+  <link href="styles.css" rel="stylesheet">
 
-    label {
-      display: block;
-      margin-top: 15px;
-    }
-
-    input {
-      width: 160px;
-      padding: 6px;
-      margin-top: 5px;
-    }
-
-    button {
-      padding: 10px 18px;
-      font-size: 15px;
-      margin-right: 10px;
-    }
-
-    .result {
-      margin-top: 25px;
-      font-size: 15px;
-    }
-
-    .salary {
-      margin-top: 10px;
-      font-weight: bold;
-      font-size: 16px;
-    }
-
-    .note {
-      margin-top: 30px;
-      font-size: 13px;
-      color: #555;
-    }
-
-    .calc-button {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      padding: 0 12px;
-      background-color: #f0f0f0;
-      color: #333;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      cursor: pointer;
-      text-align: right;
-      font-size: 14px;
-    }
-
-    .money-span {
-      font-weight: bold;
-      white-space: nowrap;
-    }
-
-    .button-1 {
-      background-color: #FFCC99;
-    }
-
-    .button-2 {
-      background-color: #99CC00;
-    }
-
-    @media (max-width: 600px) {
-      body {
-        margin: 15px auto;
-        padding: 0 10px;
-      }
-
-      img {
-        max-width: 120px;
-      }
-
-      h2 {
-        font-size: 20px;
-      }
-
-      input {
-        width: 100%;
-        max-width: 200px;
-      }
-
-      button {
-        width: 100%;
-        margin-right: 0;
-      }
-
-      /* Put all buttons in one row on mobile */
-      div[style*="text-align: left"] {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 5px !important;
-        align-items: center !important;
-        flex-wrap: wrap !important;
-      }
-
-      div[style*="text-align: left"]>button:first-child {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        font-size: 12px !important;
-        padding: 5px 10px !important;
-        margin-bottom: 0 !important;
-      }
-
-      div[style*="text-align: left"]>div[style*="inline-block"] {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 5px !important;
-        flex: 1 !important;
-        margin-right: 0 !important;
-        margin-top: 0 !important;
-      }
-
-      div[style*="text-align: left"]>div[style*="inline-block"] button {
-        flex: 1 !important;
-        font-size: 11px !important;
-        padding: 8px 5px !important;
-        white-space: nowrap !important;
-        margin-bottom: 0 !important;
-      }
-
-      /* Keep input/button in same row on mobile - use smaller text */
-      div[id*="Mode"]>div[style*="display: flex"]>label {
-        margin-bottom: 0 !important;
-        font-size: 14px !important;
-      }
-
-      div[id*="Mode"]>div[style*="display: flex"]>input {
-        flex: 2 !important;
-        margin-top: 5px !important;
-      }
-
-      div[id*="Mode"]>div[style*="display: flex"]>button {
-        flex: 1 !important;
-        padding: 8px 5px !important;
-        font-size: 12px !important;
-      }
-    }
-  </style>
 </head>
+
+
 
 <body>
 
+
+
   <!-- LOGO -->
+
   <div class="header-container">
+
     <h3>מחשבון משכורת חודשי ברוטו</h3>
+
     <img src="logo.png" alt="Company Logo" class="logo">
+
   </div>
+
+
 
   <div style="text-align: left; margin-bottom: 15px;">
+
     <button onclick="clearAll()"
+
       style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: auto;">נקה</button>
 
+
+
     <div style="display: inline-block; margin-right: 10px;">
+
       <button id="baseModeBtn" onclick="switchMode('base')"
+
         style="font-size: 12px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">שכר
+
         שעתי</button>
+
       <button id="targetModeBtn" onclick="switchMode('target')"
+
         style="font-size: 12px; padding: 5px 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">משכורת
+
         חודשית רצויה</button>
+
     </div>
+
   </div>
+
+
 
   <div id="baseMode">
+
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+
       <label style="margin: 0;">
+
         משכורת שעתית:
+
         <input type="number" id="hourly" step="0.01" style="margin-top: 5px;">
+
       </label>
+
       <button onclick="calculateFromBase()">חשב</button>
+
     </div>
+
+
 
     <div class="result" id="result1"></div>
+
   </div>
+
+
 
   <div id="targetMode" style="display: none;">
+
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+
       <label style="margin: 0;">
+
         משכורת חודשית רצויה:
+
         <input type="number" id="desired" step="0.01" style="margin-top: 5px;">
+
       </label>
+
       <button onclick="calculateFromTarget()">חשב</button>
+
     </div>
+
     <div class="result" id="result2"></div>
+
   </div>
+
+
 
   <div class="daily-details" id="dailyDetails" style="margin-top: 30px; font-size: 13px; color: #666; display: none;">
+
     <h4 style="margin-bottom: 15px; color: #333;">פירוט שכר לפי יום:</h4>
+
     <div id="dailyBreakdown"></div>
+
   </div>
+
+
 
   <div class="note">
+
     <strong>תנאים:</strong><br>
+
     • 22 ימי עבודה בחודש כולל שישי פעמיים בחודש<br>
+
     • שעות נוספות יש רק במשמרות בוקר<br>
+
   </div>
 
+
+
   <script>
+
     /* ---------- CONSTANTS (hour-based, multiplier-based) ---------- */
+
+
 
     const REGULAR_WEEK_BASE_HOURS = (4 * 8.6) + 7.6;
 
+
+
     // Extra hours (per day)
+
     function extraDayPay(base) {
+
       return (2 * base * 1.25) + (1 * base * 1.5);
+
     }
+
+
 
     function extraDayPayFriday(base) {
+
       return (2 * base * 1.25) + (4 * base * 1.5);
+
     }
+
+
 
     // Night shift (12 hours)
+
     function nightDayPay(base) {
+
       return (
+
         (3 * base * 1.0) +
+
         (4 * base * 1.425) +
+
         (2 * base * 1.781) +
+
         (3 * base * 2.137)
+
       );
+
     }
 
-    /* ---------- MONTH CALCULATION ---------- */
 
-    function calculateMonth(base, nightShifts, allExtraDays) {
+
+    /* ---------- ROW-SPECIFIC CALCULATION FUNCTIONS ---------- */
+
+
+
+    function calculateMorningOnly(base) {
+
       let total = 0;
 
-      let dayWeekCount = 0;
       for (let week = 1; week <= 4; week++) {
-        const isNightWeek = (nightShifts > 0 && week % 2 === 0);
 
-        if (isNightWeek) {
-          nightShifts--;
-          total += 5 * nightDayPay(base);
-        } else {
-          dayWeekCount++;
-          total += REGULAR_WEEK_BASE_HOURS * base;
-          const extraDays = allExtraDays ? 5 : ((dayWeekCount % 2 != 0) ? 2 : 3);
-          total += extraDays * extraDayPay(base);
-        }
-      }
+        total += REGULAR_WEEK_BASE_HOURS * base;
 
-      // +2 extra regular days (30-day month)
-      const regularDayBaseHours = 8.6;
-      for (let i = 0; i < 2; i++) {
-        total += extraDayPayFriday(base);
       }
 
       return total;
+
     }
 
-    function calculateDailyBreakdown(base, nightShifts, allExtraDays) {
-      const days = [];
-      let dayWeekCount = 0;
+
+
+    function calculateMorningWithThreeExtra(base) {
+
+      let total = 0;
 
       for (let week = 1; week <= 4; week++) {
-        const isNightWeek = (nightShifts > 0 && week % 2 === 0);
 
-        if (isNightWeek) {
-          nightShifts--;
-          // Night shift week - 5 nights
-          for (let day = 1; day <= 5; day++) {
-            days.push({
-              type: 'לילה',
-              pay: nightDayPay(base),
-              hours: 12,
-              description: `יום ${day}`,
-              week: week
-            });
-          }
-        } else {
-          dayWeekCount++;
-          // Regular week
-          // 4 regular days
-          for (let day = 1; day <= 4; day++) {
-            days.push({
-              type: 'בוקר',
-              pay: 8.6 * base,
-              hours: 8.6,
-              description: `יום ${day}`,
-              week: week
-            });
-          }
-          // Thursday (7.6 hours)
-          days.push({
-            type: 'בוקר',
-            pay: 7.6 * base,
-            hours: 7.6,
-            description: `יום 5`,
-            week: week
-          });
+        total += REGULAR_WEEK_BASE_HOURS * base;
 
-          // Extra days
-          const extraDays = allExtraDays ? 5 : ((dayWeekCount % 2 != 0) ? 2 : 3);
-          for (let day = 1; day <= extraDays; day++) {
-            days.push({
-              type: '',
-              pay: extraDayPay(base),
-              hours: 3,
-              description: `ש"נ ${day}`,
-              week: week
-            });
-          }
-        }
+        total += 3 * extraDayPay(base);
+
+      }
+
+      // +1 extra regular day (30-day month)
+
+      for (let i = 0; i < 1; i++) {
+
+        total += extraDayPayFriday(base);
+
+      }
+
+      return total;
+
+    }
+
+
+
+    function calculateMorningWithFiveExtra(base) {
+
+      let total = 0;
+
+      for (let week = 1; week <= 4; week++) {
+
+        total += REGULAR_WEEK_BASE_HOURS * base;
+
+        total += 5 * extraDayPay(base);
+
       }
 
       // +2 extra regular days (30-day month)
-      for (let i = 1; i <= 2; i++) {
+
+      for (let i = 0; i < 2; i++) {
+
+        total += extraDayPayFriday(base);
+
+      }
+
+      return total;
+
+    }
+
+
+
+    function calculateAlternatingMorningNight(base) {
+
+      let total = 0;
+
+      for (let week = 1; week <= 4; week++) {
+
+        if (week % 2 === 0) {
+
+          // Night week
+
+          total += 5 * nightDayPay(base);
+
+        } else {
+
+          // Morning week
+
+          total += REGULAR_WEEK_BASE_HOURS * base;
+
+          total += ((week === 2) ? 0 : ((week === 3) ? 3 : 2)) * extraDayPay(base);
+
+        }
+
+      }
+
+      // +2 extra regular days (30-day month)
+
+      for (let i = 0; i < 2; i++) {
+
+        total += extraDayPayFriday(base);
+
+      }
+
+      return total;
+
+    }
+
+
+
+    function calculateOneNightWeek(base) {
+
+      let total = 0;
+
+      for (let week = 1; week <= 4; week++) {
+
+        if (week === 2) {
+
+          // One night week (week 2)
+
+          total += 5 * nightDayPay(base);
+
+        } else {
+
+          // Morning weeks
+
+          total += REGULAR_WEEK_BASE_HOURS * base;
+
+          total += ((week === 3) ? 3 : 2) * extraDayPay(base);
+
+        }
+
+      }
+
+      // +2 extra regular days (30-day month)
+
+      for (let i = 0; i < 2; i++) {
+
+        total += extraDayPayFriday(base);
+
+      }
+
+      return total;
+
+    }
+
+
+
+    /* ---------- ROW-SPECIFIC DAILY BREAKDOWN FUNCTIONS ---------- */
+
+
+
+    function getDailyBreakdownMorningOnly(base) {
+
+      const days = [];
+
+      for (let week = 1; week <= 4; week++) {
+
+        // 4 regular days
+
+        for (let day = 1; day <= 4; day++) {
+
+          days.push({
+
+            type: 'בוקר',
+
+            pay: 8.6 * base,
+
+            hours: 8.6,
+
+            description: `יום ${day}`,
+
+            week: week
+
+          });
+
+        }
+
+        // Thursday (7.6 hours)
+
         days.push({
-          type: 'בוקר+שעות נוספות',
-          pay: extraDayPayFriday(base),
-          hours: 6,
-          description: `יום נוסף ${i}`,
-          week: null
+
+          type: 'בוקר',
+
+          pay: 7.6 * base,
+
+          hours: 7.6,
+
+          description: `יום 5`,
+
+          week: week
+
         });
+
       }
 
       return days;
+
     }
+
+
+
+    function getDailyBreakdownMorningWithThreeExtra(base) {
+
+      const days = [];
+
+      for (let week = 1; week <= 4; week++) {
+
+        // 4 regular days
+
+        for (let day = 1; day <= 4; day++) {
+
+          days.push({
+
+            type: 'בוקר',
+
+            pay: 8.6 * base,
+
+            hours: 8.6,
+
+            description: `יום ${day}`,
+
+            week: week
+
+          });
+
+        }
+
+        // Thursday (7.6 hours)
+
+        days.push({
+
+          type: 'בוקר',
+
+          pay: 7.6 * base,
+
+          hours: 7.6,
+
+          description: `יום 5`,
+
+          week: week
+
+        });
+
+        // 3 extra days
+
+        for (let day = 1; day <= 3; day++) {
+
+          days.push({
+
+            type: '',
+
+            pay: extraDayPay(base),
+
+            hours: 3,
+
+            description: `ש"נ ${day}`,
+
+            week: week
+
+          });
+
+        }
+
+      }
+
+      // +1 extra regular day (30-day month)
+
+      for (let i = 1; i <= 1; i++) {
+
+        days.push({
+
+          type: 'בוקר+שעות נוספות',
+
+          pay: extraDayPayFriday(base),
+
+          hours: 6,
+
+          description: `יום נוסף ${i}`,
+
+          week: null
+
+        });
+
+      }
+
+      return days;
+
+    }
+
+
+
+    function getDailyBreakdownMorningWithFiveExtra(base) {
+
+      const days = [];
+
+      for (let week = 1; week <= 4; week++) {
+
+        // 4 regular days
+
+        for (let day = 1; day <= 4; day++) {
+
+          days.push({
+
+            type: 'בוקר',
+
+            pay: 8.6 * base,
+
+            hours: 8.6,
+
+            description: `יום ${day}`,
+
+            week: week
+
+          });
+
+        }
+
+        // Thursday (7.6 hours)
+
+        days.push({
+
+          type: 'בוקר',
+
+          pay: 7.6 * base,
+
+          hours: 7.6,
+
+          description: `יום 5`,
+
+          week: week
+
+        });
+
+        // 5 extra days
+
+        for (let day = 1; day <= 5; day++) {
+
+          days.push({
+
+            type: '',
+
+            pay: extraDayPay(base),
+
+            hours: 3,
+
+            description: `ש"נ ${day}`,
+
+            week: week
+
+          });
+
+        }
+
+      }
+
+      // +2 extra regular days (30-day month)
+
+      for (let i = 1; i <= 2; i++) {
+
+        days.push({
+
+          type: 'בוקר+שעות נוספות',
+
+          pay: extraDayPayFriday(base),
+
+          hours: 6,
+
+          description: `יום נוסף ${i}`,
+
+          week: null
+
+        });
+
+      }
+
+      return days;
+
+    }
+
+
+
+    function getDailyBreakdownAlternatingMorningNight(base) {
+
+      const days = [];
+
+      for (let week = 1; week <= 4; week++) {
+
+        if (week % 2 === 0) {
+
+          // Night week - 5 nights
+
+          for (let day = 1; day <= 5; day++) {
+
+            days.push({
+
+              type: 'לילה',
+
+              pay: nightDayPay(base),
+
+              hours: 12,
+
+              description: `יום ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+        } else {
+
+          // Morning week
+
+          // 4 regular days
+
+          for (let day = 1; day <= 4; day++) {
+
+            days.push({
+
+              type: 'בוקר',
+
+              pay: 8.6 * base,
+
+              hours: 8.6,
+
+              description: `יום ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+          // Thursday (7.6 hours)
+
+          days.push({
+
+            type: 'בוקר',
+
+            pay: 7.6 * base,
+
+            hours: 7.6,
+
+            description: `יום 5`,
+
+            week: week
+
+          });
+
+          // Extra days (week 1: 2, week 3: 3)
+
+          const extraDays = (week === 2) ? 0 : ((week === 3) ? 3 : 2);
+
+          for (let day = 1; day <= extraDays; day++) {
+
+            days.push({
+
+              type: '',
+
+              pay: extraDayPay(base),
+
+              hours: 3,
+
+              description: `ש"נ ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+        }
+
+      }
+
+      // +2 extra regular days (30-day month)
+
+      for (let i = 1; i <= 2; i++) {
+
+        days.push({
+
+          type: 'בוקר+שעות נוספות',
+
+          pay: extraDayPayFriday(base),
+
+          hours: 6,
+
+          description: `יום נוסף ${i}`,
+
+          week: null
+
+        });
+
+      }
+
+      return days;
+
+    }
+
+
+
+    function getDailyBreakdownOneNightWeek(base) {
+
+      const days = [];
+
+      for (let week = 1; week <= 4; week++) {
+
+        if (week === 2) {
+
+          // One night week (week 2) - 5 nights
+
+          for (let day = 1; day <= 5; day++) {
+
+            days.push({
+
+              type: 'לילה',
+
+              pay: nightDayPay(base),
+
+              hours: 12,
+
+              description: `יום ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+        } else {
+
+          // Morning weeks
+
+          // 4 regular days
+
+          for (let day = 1; day <= 4; day++) {
+
+            days.push({
+
+              type: 'בוקר',
+
+              pay: 8.6 * base,
+
+              hours: 8.6,
+
+              description: `יום ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+          // Thursday (7.6 hours)
+
+          days.push({
+
+            type: 'בוקר',
+
+            pay: 7.6 * base,
+
+            hours: 7.6,
+
+            description: `יום 5`,
+
+            week: week
+
+          });
+
+          // Extra days (week 1: 2, week 3: 3, week 4: 2)
+
+          const extraDays = ((week === 3) ? 3 : 2);
+
+          for (let day = 1; day <= extraDays; day++) {
+
+            days.push({
+
+              type: '',
+
+              pay: extraDayPay(base),
+
+              hours: 3,
+
+              description: `ש"נ ${day}`,
+
+              week: week
+
+            });
+
+          }
+
+        }
+
+      }
+
+      // +2 extra regular days (30-day month)
+
+      for (let i = 1; i <= 2; i++) {
+
+        days.push({
+
+          type: 'בוקר+שעות נוספות',
+
+          pay: extraDayPayFriday(base),
+
+          hours: 6,
+
+          description: `יום נוסף ${i}`,
+
+          week: null
+
+        });
+
+      }
+
+      return days;
+
+    }
+
+
 
     /* ---------- BUTTON HANDLERS ---------- */
 
+
+
     let currentBaseRate = 0;
+
     let isTargetMode = false;
+
     let targetSalary = 0;
+
     let selectedRow = null;
 
+
+
     function switchMode(mode) {
+
       clearAll();
+
       if (mode === 'base') {
+
         document.getElementById('baseMode').style.display = 'block';
+
         document.getElementById('targetMode').style.display = 'none';
+
         isTargetMode = false;
 
+
+
         // Update button styles
+
         document.getElementById('baseModeBtn').style.backgroundColor = '#007bff';
+
         document.getElementById('baseModeBtn').style.color = 'white';
+
         document.getElementById('baseModeBtn').style.border = 'none';
+
         document.getElementById('targetModeBtn').style.backgroundColor = '#f0f0f0';
+
         document.getElementById('targetModeBtn').style.color = '#333';
+
         document.getElementById('targetModeBtn').style.border = '1px solid #ccc';
+
       } else {
+
         document.getElementById('baseMode').style.display = 'none';
+
         document.getElementById('targetMode').style.display = 'block';
+
         isTargetMode = true;
 
+
+
         // Update button styles
+
         document.getElementById('targetModeBtn').style.backgroundColor = '#007bff';
+
         document.getElementById('targetModeBtn').style.color = 'white';
+
         document.getElementById('targetModeBtn').style.border = 'none';
+
         document.getElementById('baseModeBtn').style.backgroundColor = '#f0f0f0';
+
         document.getElementById('baseModeBtn').style.color = '#333';
+
         document.getElementById('baseModeBtn').style.border = '1px solid #ccc';
+
       }
+
     }
 
+
+
     function calculateFromBase() {
+
       const base = parseFloat(document.getElementById("hourly").value);
+
       if (isNaN(base) || base <= 0) {
+
         result1.textContent = "";
+
       }
+
+
 
       currentBaseRate = base;
 
-      const noNight = calculateMonth(base, 0);
-      const withNight = calculateMonth(base, 2);
-      const smt = calculateMonth(base, 0, true);
-      const special = calculateMonth(base, 1);
+
+
+      const morningOnly = calculateMorningOnly(base);
+
+      const noNight = calculateMorningWithThreeExtra(base);
+
+      const withNight = calculateAlternatingMorningNight(base);
+
+      const smt = calculateMorningWithFiveExtra(base);
+
+      const special = calculateOneNightWeek(base);
+
+
 
       // 1. Create the formatter once
+
       const shekelFormatter = new Intl.NumberFormat('he-IL', {
+
         style: 'currency',
+
         currency: 'ILS',
+
         minimumFractionDigits: 2,
+
         maximumFractionDigits: 2
+
       });
+
+
 
       // 2. Apply it to your results
-      result1.innerHTML = getResultHtml(noNight, withNight, smt, special);
+
+      result1.innerHTML = getResultHtml(morningOnly, noNight, withNight, smt, special);
+
     }
+
+
 
     function calculateFromTarget() {
+
       const target = parseFloat(document.getElementById("desired").value);
+
       if (isNaN(target) || target <= 0) {
+
         result2.textContent = "Please enter a valid desired monthly salary.";
+
         return;
+
       }
+
+
 
       // Set target mode
+
       isTargetMode = true;
+
       targetSalary = target;
 
+
+
       // Calculate factor by running calculation with base = 1
-      const factorNoNight = calculateMonth(1, 0);
-      const factorWithNight = calculateMonth(1, 2);
-      const factorSmt = calculateMonth(1, 0, true);
-      const factorSpecial = calculateMonth(1, 1);
+
+      const factorMorningOnly = calculateMorningOnly(1);
+
+      const factorNoNight = calculateMorningWithThreeExtra(1);
+
+      const factorWithNight = calculateAlternatingMorningNight(1);
+
+      const factorSmt = calculateMorningWithFiveExtra(1);
+
+      const factorSpecial = calculateOneNightWeek(1);
+
+
+
+      const morningOnly = target / factorMorningOnly;
 
       const noNight = target / factorNoNight;
+
       const withNight = target / factorWithNight;
+
       const smt = target / factorSmt;
+
       const special = target / factorSpecial;
 
-      currentBaseRate = noNight;
 
-      result2.innerHTML = getResultHtml(noNight, withNight, smt, special);
+
+      currentBaseRate = morningOnly;
+
+
+
+      result2.innerHTML = getResultHtml(morningOnly, noNight, withNight, smt, special);
+
     }
 
-    function getResultHtml(noNight, withNight, smt, special) {
+
+
+    function getResultHtml(morningOnly, noNight, withNight, smt, special) {
+
       const shekel = new Intl.NumberFormat('he-IL', {
+
         minimumFractionDigits: 2,
+
         maximumFractionDigits: 2
+
       });
+
+
 
       return `
+
     <div style="text-align: center; margin-bottom: 15px; font-size: 13px; color: #666;">
+
       לחץ על מנת לראות פירוט שכר לפי יום
+
     </div>
+
     <div style="display: flex; flex-direction: column; gap: 3px; width: 100%;">
-      <button id="row1" onclick="selectRow(1, 0, false, 'שבוע בוקר + 2-3 ש&quot;נ בשבוע')" class="calc-button button-1">
-        <span>שבוע בוקר + 2-3 ש"נ בשבוע:</span>
+
+      <button id="row0" onclick="selectRow(0, 'בוקר בלבד ללא שעות נוספות')" class="calc-button">
+
+        <span>בוקר בלבד ללא שעות נוספות:</span>
+
+        <span class="money-span">${shekel.format(morningOnly)} ₪</span>
+
+      </button>
+
+      <button id="row1" onclick="selectRow(1, 'שבוע בוקר + 3 ש&quot;נ בשבוע')" class="calc-button button-1">
+
+        <span>שבוע בוקר + 3 ש"נ בשבוע:</span>
+
         <span class="money-span">${shekel.format(noNight)} ₪</span>
+
       </button>
-      <button id="row3" onclick="selectRow(3, 2, false, 'שבוע בוקר/שבוע לילה')" class="calc-button button-2">
+
+      <button id="row3" onclick="selectRow(3, 'שבוע בוקר/שבוע לילה')" class="calc-button button-2">
+
         <span>שבוע בוקר/שבוע לילה:</span>
+
         <span class="money-span">${shekel.format(withNight)} ₪</span>
+
       </button>
-      <button id="row2" onclick="selectRow(2, 0, true, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
+
+      <button id="row2" onclick="selectRow(2, 'שבוע בוקר עם 5 ש&quot;נ')" class="calc-button">
+
         <span>שבוע בוקר עם 5 ש"נ<br/>(מחלקת SMT בוקר):</span>
+
         <span class="money-span">${shekel.format(smt)} ₪</span>
+
       </button>
-      <button id="row4" onclick="selectRow(4, 1, false, 'חודש עם שבוע אחד של לילות')" class="calc-button">
+
+      <button id="row4" onclick="selectRow(4, 'חודש עם שבוע אחד של לילות')" class="calc-button">
+
         <span>חודש עם שבוע אחד של לילות<br/>(מחלקת SMT 3 תחת ודים קנסבקי):</span>
+
         <span class="money-span">${shekel.format(special)} ₪</span>
+
       </button>
+
     </div>
+
   `;
+
     }
 
-    function showDailyBreakdown(base, nightShifts, allExtraDays, scenarioName) {
-      const days = calculateDailyBreakdown(base, nightShifts, allExtraDays);
+
+
+    function showDailyBreakdown(base, scenarioName, rowId) {
+
+      let days;
+
+      switch(rowId) {
+
+        case 0:
+
+          days = getDailyBreakdownMorningOnly(base);
+
+          break;
+
+        case 1:
+
+          days = getDailyBreakdownMorningWithThreeExtra(base);
+
+          break;
+
+        case 2:
+
+          days = getDailyBreakdownMorningWithFiveExtra(base);
+
+          break;
+
+        case 3:
+
+          days = getDailyBreakdownAlternatingMorningNight(base);
+
+          break;
+
+        case 4:
+
+          days = getDailyBreakdownOneNightWeek(base);
+
+          break;
+
+        default:
+
+          days = [];
+
+      }
+
       const shekel = new Intl.NumberFormat('he-IL', {
+
         style: 'currency',
+
         currency: 'ILS',
+
         minimumFractionDigits: 2
+
       });
+
+
 
       let html = `
+
         <div style="margin-bottom: 10px; font-weight: bold; color: #333;">
+
           ${scenarioName} | שכר שעתי: ${shekel.format(base)}
+
         </div>
+
         <table style="width: 100%; direction: rtl; border-collapse: collapse; font-size: 12px;">
+
           <tr style="border-bottom: 1px solid #ddd; background-color: #f9f9f9;">
+
             <th style="padding: 8px 5px; text-align: right;">יום</th>
+
             <th style="padding: 8px 5px; text-align: right;">סוג</th>
+
             <th style="padding: 8px 5px; text-align: right;">שעות</th>
+
             <th style="padding: 8px 5px; text-align: left;">שכר</th>
+
           </tr>
+
       `;
+
+
 
       days.forEach((day, index) => {
+
         const rowStyle = index % 2 === 0 ? 'background-color: #fafafa;' : '';
 
+
+
         // Check if this is the start of a new week and add separator
+
         let separatorRow = '';
+
         if (index === 0) {
+
           // First week separator
+
           separatorRow = `
+
             <tr style="border-top: 2px solid #666;">
+
               <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע 1 ---</td>
+
             </tr>
+
           `;
+
         } else if (index > 0) {
+
           const currentWeek = day.week;
+
           const previousWeek = days[index - 1].week;
 
+
+
           if (currentWeek !== null && previousWeek !== null && currentWeek !== previousWeek) {
+
             separatorRow = `
+
                 <tr style="border-top: 2px solid #666;">
+
                   <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- שבוע ${currentWeek} ---</td>
+
                 </tr>
+
               `;
+
           }
+
           // Add separator before extra days (when transitioning from week days to "יום נוסף")
+
           else if (currentWeek === null && previousWeek !== null) {
+
             separatorRow = `
+
               <tr style="border-top: 2px solid #666;">
+
                 <td colspan="4" style="padding: 3px 5px; font-size: 10px; color: #666; text-align: center;">--- ימי שישי ---</td>
+
               </tr>
+
             `;
+
           }
+
         }
+
+
 
         html += separatorRow + `
+
           <tr style="border-bottom: 1px solid #eee; ${rowStyle}">
+
             <td style="padding: 6px 5px;">${day.description}</td>
+
             <td style="padding: 6px 5px;">${day.type}</td>
+
             <td style="padding: 6px 5px;">${day.hours}</td>
+
             <td style="padding: 6px 5px; text-align: left; font-weight: bold;">${shekel.format(day.pay)}</td>
+
           </tr>
+
         `;
+
       });
 
+
+
       const total = days.reduce((sum, day) => sum + day.pay, 0);
+
       html += `
+
           <tr style="border-top: 2px solid #333; font-weight: bold;">
+
             <td colspan="2" style="padding: 8px 5px;">סה"כ:</td>
+
             <td style="padding: 8px 5px; text-align: left;">${shekel.format(total)}</td>
+
           </tr>
+
         </table>
+
       `;
 
+
+
       document.getElementById('dailyDetails').style.display = 'block';
+
       document.getElementById('dailyBreakdown').innerHTML = html;
+
     }
 
-    function selectRow(rowId, nightShifts, allExtraDays, scenarioName) {
-      // Remove selection style from previously selected row
-      if (selectedRow) {
+
+
+    function selectRow(rowId, scenarioName) {
+
+      // Remove selection style from previously selected row and restore original colors
+
+      if (selectedRow !== null) {
+
         const prevRow = document.getElementById(`row${selectedRow}`);
+
         if (prevRow) {
+
+          // Remove selection styles
+
           prevRow.style.backgroundColor = '';
+
           prevRow.style.color = '';
+
           prevRow.style.border = '';
+
+          
+
+          // Restore original background color based on row ID
+
+          if (selectedRow === 1) {
+
+            prevRow.classList.add('button-1');
+
+          } else if (selectedRow === 3) {
+
+            prevRow.classList.add('button-2');
+
+          }
+
         }
+
       }
 
-      // Add selection style to newly selected row (matching mode button style)
+
+
+      // Remove original background color class from newly selected row
+
       const currentRow = document.getElementById(`row${rowId}`);
+
       if (currentRow) {
+
+        // Remove original background color classes
+
+        currentRow.classList.remove('button-1', 'button-2');
+
+        
+
+        // Add selection style
+
         currentRow.style.backgroundColor = '#007bff';
+
         currentRow.style.color = 'white';
+
         currentRow.style.border = 'none';
+
         selectedRow = rowId;
+
       }
+
+
 
       // Update daily breakdown
-      updateDailyBreakdown(nightShifts, allExtraDays, scenarioName);
+
+      updateDailyBreakdown(rowId, scenarioName);
+
     }
 
-    function updateDailyBreakdown(nightShifts, allExtraDays, scenarioName) {
+
+
+    function updateDailyBreakdown(rowId, scenarioName) {
+
       if (currentBaseRate <= 0) {
+
         return;
+
       }
+
+
 
       if (isTargetMode) {
+
         // In target mode, calculate the hourly rate needed for this scenario to reach the target salary
-        const factor = calculateMonth(1, nightShifts, allExtraDays);
+
+        let factor;
+
+        switch(rowId) {
+
+          case 0:
+
+            factor = calculateMorningOnly(1);
+
+            break;
+
+          case 1:
+
+            factor = calculateMorningWithThreeExtra(1);
+
+            break;
+
+          case 2:
+
+            factor = calculateMorningWithFiveExtra(1);
+
+            break;
+
+          case 3:
+
+            factor = calculateAlternatingMorningNight(1);
+
+            break;
+
+          case 4:
+
+            factor = calculateOneNightWeek(1);
+
+            break;
+
+          default:
+
+            factor = 1;
+
+        }
+
         const hourlyRate = targetSalary / factor;
-        showDailyBreakdown(hourlyRate, nightShifts, allExtraDays, scenarioName);
+
+        showDailyBreakdown(hourlyRate, scenarioName, rowId);
+
       } else {
+
         // In base mode, use the current base rate
-        showDailyBreakdown(currentBaseRate, nightShifts, allExtraDays, scenarioName);
+
+        showDailyBreakdown(currentBaseRate, scenarioName, rowId);
+
       }
+
     }
+
+
 
     function clearAll() {
+
       document.getElementById("hourly").value = "";
+
       document.getElementById("desired").value = "";
+
       document.getElementById("result1").innerHTML = "";
+
       document.getElementById("result2").innerHTML = "";
+
       document.getElementById("dailyDetails").style.display = "none";
+
       document.getElementById("dailyBreakdown").innerHTML = "";
+
       currentBaseRate = 0;
+
       isTargetMode = false;
+
       targetSalary = 0;
+
       selectedRow = null;
 
+
+
       // Reset any selected row background color
-      for (let i = 1; i <= 4; i++) {
+
+      for (let i = 0; i <= 4; i++) {
+
         const row = document.getElementById(`row${i}`);
+
         if (row) {
+
           row.style.backgroundColor = '';
+
           row.style.color = '';
+
           row.style.border = '';
+
         }
+
       }
+
     }
+
   </script>
 
+
+
 </body>
+
+
 
 </html>

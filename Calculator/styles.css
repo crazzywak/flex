@@ -1,0 +1,158 @@
+body {
+  font-family: 'Assistant', sans-serif;
+  max-width: 650px;
+  margin: 20px auto;
+  padding: 0 15px;
+  line-height: 1.5;
+}
+
+.header-container {
+  display: flex;
+  /* Enables flexbox */
+  align-items: center;
+  justify-content: space-between;
+  /* Vertically aligns items in the center */
+  /* Adds space between the logo and text */
+}
+
+img {
+  max-width: 140px;
+}
+
+label {
+  display: block;
+  margin-top: 15px;
+}
+
+input {
+  width: 160px;
+  padding: 6px;
+  margin-top: 5px;
+}
+
+button {
+  padding: 10px 18px;
+  font-size: 15px;
+  margin-right: 10px;
+}
+
+.result {
+  margin-top: 25px;
+  font-size: 15px;
+}
+
+.salary {
+  margin-top: 10px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.note {
+  margin-top: 30px;
+  font-size: 13px;
+  color: #555;
+}
+
+.calc-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: right;
+  font-size: 14px;
+}
+
+.money-span {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.button-1 {
+  background-color: #FFCC99;
+}
+
+.button-2 {
+  background-color: #99CC00;
+}
+
+@media (max-width: 600px) {
+  body {
+    margin: 15px auto;
+    padding: 0 10px;
+  }
+
+  img {
+    max-width: 120px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  input {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  button {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  /* Put all buttons in one row on mobile */
+  div[style*="text-align: left"] {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 5px !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+  }
+
+  div[style*="text-align: left"]>button:first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    font-size: 12px !important;
+    padding: 5px 10px !important;
+    margin-bottom: 0 !important;
+  }
+
+  div[style*="text-align: left"]>div[style*="inline-block"] {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 5px !important;
+    flex: 1 !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  div[style*="text-align: left"]>div[style*="inline-block"] button {
+    flex: 1 !important;
+    font-size: 11px !important;
+    padding: 8px 5px !important;
+    white-space: nowrap !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Keep input/button in same row on mobile - use smaller text */
+  div[id*="Mode"]>div[style*="display: flex"]>label {
+    margin-bottom: 0 !important;
+    font-size: 14px !important;
+  }
+
+  div[id*="Mode"]>div[style*="display: flex"]>input {
+    flex: 2 !important;
+    margin-top: 5px !important;
+  }
+
+  div[id*="Mode"]>div[style*="display: flex"]>button {
+    flex: 1 !important;
+    padding: 8px 5px !important;
+    font-size: 12px !important;
+  }
+}
