@@ -1,234 +1,264 @@
 import flet as ft
 import pandas as pd
 import os
+import re  # ייבוא ספריית ביטויים רגולריים
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-xlsx_path = os.path.join(BASE_DIR, "data.xlsx")
-logo_path = os.path.join(BASE_DIR, "logo.png")
-
-print(xlsx_path)  # optional, to verify
-
+data_path = os.path.join(BASE_DIR, "data.xlsx")
+profiles_path = os.path.join(BASE_DIR, "job profiles.xlsx")
 
 def main(page: ft.Page):
-    # עדכון שם המערכת בחלון
-    page.title = "Role Finder"
-    page.window.maximized = True
+    page.title = "Role Finder - מערכת איתור תפקידים"
     page.rtl = True
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.padding = 40
-    page.expand = True
+    page.padding = 30
+    page.scroll = ft.ScrollMode.ADAPTIVE
+    page.window.maximized = True
 
-    # טעינת נתונים מקובץ חיצוני
+    # 1. טעינת נתונים
     try:
-        if os.path.exists(xlsx_path):
-            df_raw = pd.read_excel(xlsx_path, sheet_name=0)
-            # סינון ערכים לא מספריים בעמודת שכר והמרה למספר
-            df_raw = df_raw[pd.to_numeric(df_raw['שכר'], errors='coerce').notna()]
-            df_raw['שכר'] = pd.to_numeric(df_raw['שכר'])
-        else:
-            page.add(ft.Text("שגיאה: קובץ data.xlsx לא נמצא בתיקיית ההרצה", color="red", size=20))
-            return
+        df_data = pd.read_excel(data_path)
+        df_profiles = pd.read_excel(profiles_path)
     except Exception as e:
-        page.add(ft.Text(f"שגיאה בטעינת הקובץ: {e}", color="red"))
+        page.add(ft.Text(f"שגיאה בטעינת הקבצים: {e}", color="red", size=20))
         return
 
-    # חישוב טווחים עבור הסליידרים
-    min_s, max_s = float(df_raw['שכר'].min()), float(df_raw['שכר'].max())
-    # חישוב גיל מתוך תאריך התחלה
-    df_raw['גיל'] = pd.to_datetime(df_raw['תחילת עבודה']).apply(lambda x: 2025 - x.year)
-    min_a, max_a = int(df_raw['גיל'].min()), int(df_raw['גיל'].max())
+    # ניקוי ויישור שמות עמודות
+    df_data.columns = df_data.columns.str.strip()
+    df_profiles.columns = df_profiles.columns.str.strip()
 
-    salary_val_text = ft.Text(f"נבחר: {int(min_s)}", color=ft.Colors.BLUE_900, weight="bold")
-    age_val_text = ft.Text(f"נבחר: {int(min_a)}", color=ft.Colors.BLUE_900, weight="bold")
+    # שינוי שמות עמודות לחיבור
+    df_data.rename(columns={'אגף (מחלקה)': 'מחלקה'}, inplace=True)
+    
+    col_names = list(df_profiles.columns)
+    col_names[0] = 'מחלקה'
+    col_names[1] = 'תפקיד'
+    df_profiles.columns = col_names
 
-    data_table = ft.DataTable(
-        expand=True,
-        column_spacing=50,
-        heading_row_color=ft.Colors.GREY_200,
+    # מילוי תאים ממוזגים ריקים
+    df_profiles['מחלקה'] = df_profiles['מחלקה'].ffill()
+
+    # ניקוי רווחים מהתוכן עצמו
+    df_data['מחלקה'] = df_data['מחלקה'].astype(str).str.strip()
+    df_data['תפקיד'] = df_data['תפקיד'].astype(str).str.strip()
+    df_profiles['מחלקה'] = df_profiles['מחלקה'].astype(str).str.strip()
+    df_profiles['תפקיד'] = df_profiles['תפקיד'].astype(str).str.strip()
+
+    # 2. חישוב טווחי שכר מתוך data.xlsx מבוסס Regex
+    df_data['שכר'] = pd.to_numeric(df_data['שכר'], errors='coerce')
+    
+    min_salaries = []
+    max_salaries = []
+
+    # מעבר על כל פרופיל תפקיד וחיפוש בטבלת העובדים לפי Regex
+    for idx, row in df_profiles.iterrows():
+        dept = str(row['מחלקה'])
+        role_pattern = str(row['תפקיד'])
+
+        # חיתוך לפי מחלקה (בצורה מדויקת)
+        dept_match = df_data['מחלקה'] == dept
+        
+        # חיתוך לפי תפקיד בעזרת Regex חכם
+        try:
+            role_match = df_data['תפקיד'].str.contains(role_pattern, regex=True, flags=re.IGNORECASE, na=False)
+        except re.error:
+            # אם הביטוי הרגולרי שבור (למשל עקב תו מיוחד באקסל), נופלים לחיפוש טקסט רגיל
+            role_match = df_data['תפקיד'].str.contains(role_pattern, regex=False, na=False)
+
+        matching_rows = df_data[dept_match & role_match]
+
+        if not matching_rows.empty:
+            min_salaries.append(matching_rows['שכר'].min())
+            max_salaries.append(matching_rows['שכר'].max())
+        else:
+            min_salaries.append(float('nan'))
+            max_salaries.append(float('nan'))
+
+    # הרכבת טבלת הנתונים המאוחדת (df_merged)
+    df_merged = df_profiles.copy()
+    df_merged['שכר_מינימום'] = min_salaries
+    df_merged['שכר_מקסימום'] = max_salaries
+
+    # 3. יצירת מסננים דינמיים 
+    filters_dict = {}
+    filter_ui_elements = []
+
+    # חישוב מינימום ומקסימום שכר (מותאם לשכר שעתי) מכלל הנתונים
+    min_sal_val = df_data['שכר'].min()
+    max_sal_val = df_data['שכר'].max()
+    
+    min_salary = float(min_sal_val) if pd.notna(min_sal_val) else 30.0
+    max_salary = float(max_sal_val) if pd.notna(max_sal_val) else 100.0
+
+    if max_salary <= min_salary:
+        max_salary = min_salary + 10.0
+
+    salary_label = ft.Text(f"{int(min_salary)} ₪ לשעה", weight="bold", size=16, color=ft.Colors.BLUE_700)
+    age_label = ft.Text("25", weight="bold", size=16, color=ft.Colors.BLUE_700)
+
+    sal_divisions = int(max_salary - min_salary) if max_salary > min_salary else 1
+
+    salary_slider = ft.Slider(
+        min=min_salary, max=max_salary, value=min_salary, expand=True,
+        label="{value} ₪",
+        divisions=sal_divisions
+    )
+    age_slider = ft.Slider(
+        min=18.0, max=70.0, value=25.0, expand=True,
+        label="{value}",
+        divisions=52
+    )
+
+    def update_labels_on_release(e=None):
+        salary_label.value = f"{int(salary_slider.value)} ₪ לשעה"
+        age_label.value = str(int(age_slider.value))
+        salary_label.update()
+        age_label.update()
+
+    salary_slider.on_change_end = update_labels_on_release
+    age_slider.on_change_end = update_labels_on_release
+
+    age_col = next((col for col in df_profiles.columns if 'גיל' in col), None)
+    dynamic_cols = [c for c in df_profiles.columns[2:] if c != age_col and c not in ['שכר_מינימום', 'שכר_מקסימום']]
+
+    FILTER_WIDTH = 180 
+
+    for col in dynamic_cols:
+        unique_vals = set(df_profiles[col].dropna().astype(str).str.strip())
+        unique_vals = {v for v in unique_vals if v != ''}
+        
+        if unique_vals.issubset({'כן', 'לא'}):
+            cb = ft.Checkbox(label=col, value=False)
+            filters_dict[col] = {'type': 'checkbox', 'control': cb}
+            
+            filter_ui_elements.append(
+                ft.Container(content=cb, width=FILTER_WIDTH, tooltip=col)
+            )
+        else:
+            options = [ft.dropdown.Option("הכל")] + [ft.dropdown.Option(v) for v in sorted(list(unique_vals))]
+            dd = ft.Dropdown(
+                label=col, 
+                options=options, 
+                value="הכל", 
+                width=FILTER_WIDTH, 
+                text_size=13,
+                content_padding=10,
+                tooltip=col
+            )
+            filters_dict[col] = {'type': 'dropdown', 'control': dd}
+            filter_ui_elements.append(dd)
+
+    # 4. בניית טבלת התוצאות
+    result_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("מחלקה", weight="bold")),
             ft.DataColumn(ft.Text("תפקיד", weight="bold")),
-            ft.DataColumn(ft.Text("טווח שכר", weight="bold")),
-        ]
+            ft.DataColumn(ft.Text("טווח שכר בפועל", weight="bold")),
+        ],
+        rows=[]
     )
 
-    def update_ui(e):
-        salary_val_text.value = f"נבחר: {int(salary_slider.value)}"
-        age_val_text.value = f"נבחר: {int(age_slider.value)}"
+    results_title = ft.Text("תוצאות (תפקידים מתאימים):", weight="bold", size=18)
 
-        filtered = df_raw.copy()
-        filtered = filtered[filtered['גיל'] >= age_slider.value]
-        filtered = filtered[filtered['שכר'] >= salary_slider.value]
+    def update_table(e=None):
+        filtered_df = df_merged.copy()
 
-        group_cols = ['אגף (מחלקה)', 'תפקיד']
-        
-        if not filtered.empty:
-            summary = filtered.groupby(group_cols).agg(
-                min_s=('שכר', 'min'), max_s=('שכר', 'max'),
-                min_a=('גיל', 'min'), max_a=('גיל', 'max')
-            ).reset_index()
+        expected_salary = salary_slider.value
+        filtered_df = filtered_df[
+            (filtered_df['שכר_מקסימום'].isna()) | 
+            (filtered_df['שכר_מקסימום'] >= expected_salary)
+        ]
 
-            summary = summary[summary['max_s'] >= salary_slider.value]
-        else:
-            summary = pd.DataFrame()
+        if age_col:
+            selected_age = int(age_slider.value)
+            def is_age_in_range(age_str):
+                if pd.isna(age_str): return True
+                try:
+                    parts = str(age_str).split('-')
+                    if len(parts) == 2:
+                        return int(parts[0]) <= selected_age <= int(parts[1])
+                except:
+                    pass
+                return True
+            filtered_df = filtered_df[filtered_df[age_col].apply(is_age_in_range)]
 
-        data_table.rows.clear()
-        for _, row in summary.iterrows():
-            data_table.rows.append(
+        for col, filter_data in filters_dict.items():
+            ctrl = filter_data['control']
+            if filter_data['type'] == 'checkbox':
+                if ctrl.value:  
+                    filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == 'כן']
+            elif filter_data['type'] == 'dropdown':
+                if ctrl.value != "הכל":
+                    filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
+
+        filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
+
+        # עדכון כותרת התוצאות עם הכמות שנמצאה
+        results_title.value = f"תוצאות (תפקידים מתאימים): {len(filtered_df)}"
+
+        rows = []
+        for _, row in filtered_df.iterrows():
+            min_s = f"{int(row['שכר_מינימום'])}" if not pd.isna(row['שכר_מינימום']) else "לא ידוע"
+            max_s = f"{int(row['שכר_מקסימום'])}" if not pd.isna(row['שכר_מקסימום']) else "לא ידוע"
+            
+            salary_str = f"{min_s} ₪ - {max_s} ₪ לשעה" if min_s != max_s and min_s != "לא ידוע" else f"{min_s} ₪ לשעה" if min_s != "לא ידוע" else "לא ידוע"
+            
+            rows.append(
                 ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(row['אגף (מחלקה)'], color=ft.Colors.BLUE_700, weight="bold")),
-                    ft.DataCell(ft.Text(row['תפקיד'])),
-                    ft.DataCell(ft.Text(f"{int(row['min_s'])} - {int(row['max_s'])}")),
+                    ft.DataCell(ft.Text(str(row['מחלקה']))),
+                    ft.DataCell(ft.Text(str(row['תפקיד']))),
+                    ft.DataCell(ft.Text(salary_str)),
                 ])
             )
+        
+        result_table.rows = rows
         page.update()
 
-    # פקדי סינון
-    gender_filter = ft.Dropdown(label="מין", value="לא משנה", on_select=update_ui, 
-                               options=[ft.dropdown.Option("לא משנה"), ft.dropdown.Option("זכר"), ft.dropdown.Option("נקבה")])
-    
-    age_range_filter = ft.Dropdown(label="טווח גילאים", value="18-24", on_select=update_ui,
-                                   options=[ft.dropdown.Option("18-24"), ft.dropdown.Option("25-34"), 
-                                          ft.dropdown.Option("35-44"), ft.dropdown.Option("45-54"), 
-                                          ft.dropdown.Option("55-64"), ft.dropdown.Option("65+")])
-    
-    work_hours_filter = ft.Dropdown(label="סוג שעות עבודה", value="בוקר בלי שעות נוספות", on_select=update_ui,
-                                   options=[ft.dropdown.Option("בוקר בלי שעות נוספות"), 
-                                          ft.dropdown.Option("שבוע בוקר+2-3 ש\"נ בשבוע"),
-                                          ft.dropdown.Option("שבוע בוקר/לילה 12/12"),
-                                          ft.dropdown.Option("שבוע בוקר+5 ש\"נ"),
-                                          ft.dropdown.Option("חודש עם שבוע אחד של לילות")])
-    
-    work_duration_filter = ft.Dropdown(label="טווח זמן לעבודה", value="מועדפת", on_select=update_ui,
-                                       options=[ft.dropdown.Option("מועדפת"), 
-                                              ft.dropdown.Option("עד טווח זמן של שנה"),
-                                              ft.dropdown.Option("לטווח זמן מעל שנה")])
-    
-    work_nature_filter = ft.Dropdown(label="אופי של עבודה", value="בישיבה", on_select=update_ui,
-                                     options=[ft.dropdown.Option("בישיבה"), ft.dropdown.Option("בהליכה")])
-    
-    english_filter = ft.Dropdown(label="אנגלית", value="אין בכלל", on_select=update_ui,
-                                options=[ft.dropdown.Option("אין בכלל"), ft.dropdown.Option("בסיסית"),
-                                       ft.dropdown.Option("שליטה טובה"), ft.dropdown.Option("שפת אם")])
-    
-    russian_filter = ft.Dropdown(label="רוסית", value="אין בכלל", on_select=update_ui,
-                                options=[ft.dropdown.Option("אין בכלל"), ft.dropdown.Option("בסיסית"),
-                                       ft.dropdown.Option("שליטה טובה"), ft.dropdown.Option("שפת אם")])
-    
-    hebrew_filter = ft.Dropdown(label="עברית", value="אין בכלל", on_select=update_ui,
-                               options=[ft.dropdown.Option("אין בכלל"), ft.dropdown.Option("בסיסית"),
-                                      ft.dropdown.Option("שליטה טובה"), ft.dropdown.Option("שפת אם")])
-    
-    lift_weights_checkbox = ft.Checkbox(label="הרמת 15 ק\"ג", value=False, on_change=update_ui)
-    
-    read_drawings_checkbox = ft.Checkbox(label="שרטוטים", value=False, on_change=update_ui)
-    
-    electronics_technician_checkbox = ft.Checkbox(label="הנדסאי אלקטרוניקה", value=False, on_change=update_ui)
-    
-    assembly_experience_checkbox = ft.Checkbox(label="הרכבות", value=False, on_change=update_ui)
-    
-    welding_experience_checkbox = ft.Checkbox(label="הלחמות", value=False, on_change=update_ui)
-    
-    warehouse_experience_checkbox = ft.Checkbox(label="מחסן", value=False, on_change=update_ui)
-    
-    forklift_license_checkbox = ft.Checkbox(label="מלגזה", value=False, on_change=update_ui)
-    
-    machine_operator_checkbox = ft.Checkbox(label="מפעיל מכונה", value=False, on_change=update_ui)
-    
-    computer_software_filter = ft.Dropdown(label="ידע במחש ותוכנות", value="אין בכלל", on_select=update_ui,
-                                         options=[ft.dropdown.Option("אין בכלל"), ft.dropdown.Option("בסיסית"),
-                                                ft.dropdown.Option("שליטה טובה")])
-    
-    clear_handwriting_checkbox = ft.Checkbox(label="כתב יד", value=False, on_change=update_ui)
-    
-    integration_experience_checkbox = ft.Checkbox(label="אינטגרציה", value=False, on_change=update_ui)
-    
-    # Keep existing filters for now
-    age_slider = ft.Slider(min=min_a, max=max_a, value=min_a, divisions=int(max_a-min_a) if max_a > min_a else 1, on_change=update_ui)
-    exp_filter = ft.Dropdown(label="ניסיון קודם", value="הכל", on_select=update_ui, 
-                            options=[ft.dropdown.Option("הכל"), ft.dropdown.Option("כן"), ft.dropdown.Option("לא")])
-    salary_slider = ft.Slider(min=min_s, max=max_s, value=min_s, divisions=int(max_s-min_s) if max_s > min_a else 1, on_change=update_ui)
-
-    # Filters section
-    filters_section = ft.Container(
-        content=ft.Column([
-            ft.Text("מסנני מועמד", size=16, weight="bold", color=ft.Colors.BLUE_900),
-            
-            # First row: Basic info dropdowns
-            ft.Row([
-                gender_filter,
-                ft.Container(width=15),
-                age_range_filter,
-                ft.Container(width=15),
-                work_hours_filter,
-                ft.Container(width=15),
-                work_duration_filter,
-            ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
-            
-            ft.Divider(height=1, color=ft.Colors.GREY_300),
-            
-            # Second row: More dropdowns
-            ft.Row([
-                work_nature_filter,
-                ft.Container(width=15),
-                english_filter,
-                ft.Container(width=15),
-                russian_filter,
-                ft.Container(width=15),
-                hebrew_filter,
-            ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
-            
-            ft.Divider(height=1, color=ft.Colors.GREY_300),
-            
-            # Third row: Skills, salary and age
-            ft.Row([
-                computer_software_filter,
-                ft.Container(width=15),
-                exp_filter,
-                ft.Container(width=15),
-                ft.Column([ft.Text("ציפיות שכר:", weight="bold"), salary_slider, salary_val_text], spacing=2, width=180),
-                ft.Container(width=15),
-                ft.Column([ft.Text("גיל:", weight="bold"), age_slider, age_val_text], spacing=2, width=180),
-            ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
-            
-            ft.Divider(height=1, color=ft.Colors.GREY_300),
-            
-            # Fourth row: ALL checkboxes in one line
-            ft.Row([
-                lift_weights_checkbox,
-                read_drawings_checkbox,
-                electronics_technician_checkbox,
-                assembly_experience_checkbox,
-                welding_experience_checkbox,
-                warehouse_experience_checkbox,
-                forklift_license_checkbox,
-                machine_operator_checkbox,
-                clear_handwriting_checkbox,
-                ft.Container(width=5),
-                integration_experience_checkbox,
-            ], alignment=ft.MainAxisAlignment.CENTER, wrap=False),
-            
-            ft.Divider(height=1, color=ft.Colors.GREY_300),
-            
-        ], spacing=10),
-        padding=15, bgcolor=ft.Colors.GREY_50, border_radius=20, border=ft.Border.all(1, ft.Colors.GREY_200)
-    )
-    # Table section at the bottom
-    table_section = ft.Container(
-        content=ft.Column([
-            ft.ListView([data_table], expand=True, spacing=10)
-        ], expand=True),
-        expand=True
+    search_button = ft.ElevatedButton(
+        "סנן תוצאות", 
+        on_click=update_table
     )
 
-    # Main layout with filters above and table below
-    page.add(
-        ft.Column([
-            filters_section,
-            table_section
-        ], expand=True)
+    # 5. עיצוב והוספה למסך
+    page.add(        
+        ft.Row([
+            ft.Column([
+                ft.Row([ft.Text("ציפיות שכר מועמד:", weight="bold"), salary_label], spacing=10),
+                ft.Row([salary_slider])
+            ], expand=1),
+            ft.Column([
+                ft.Row([ft.Text("גיל מועמד:", weight="bold"), age_label], spacing=10),
+                ft.Row([age_slider])
+            ], expand=1),
+        ]),
+        
+        ft.Divider(),
+        ft.Text("מסנני פרופיל תפקיד:", weight="bold", size=18),
+        
+        ft.Container(
+            content=ft.Row(
+                filter_ui_elements, 
+                wrap=True,
+                spacing=10,                  
+                run_spacing=10,               
+                alignment=ft.MainAxisAlignment.START 
+            ),
+            padding=15,
+            bgcolor=ft.Colors.GREY_50,
+            border_radius=10,
+            border=ft.Border.all(1, ft.Colors.GREY_300)
+        ),
+        
+        ft.Container(
+            content=search_button,
+            alignment=ft.alignment.Alignment.CENTER,
+            padding=20
+        ),
+        
+        ft.Divider(),
+        results_title,
+        ft.ListView([result_table], expand=True)
     )
-    update_ui(None)
 
-if __name__ == "__main__":
-    ft.run(main)
+    update_table()
+
+ft.app(target=main)
