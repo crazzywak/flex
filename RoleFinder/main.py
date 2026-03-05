@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(BASE_DIR, "data.xlsx")
 profiles_path = os.path.join(BASE_DIR, "job profiles.xlsx")
+open_positions_path = os.path.join(BASE_DIR, "мисрот птухот.xlsx")
 
 def main(page: ft.Page):
     page.title = "Role Finder - מערכת איתור תפקידים"
@@ -22,6 +23,39 @@ def main(page: ft.Page):
     except Exception as e:
         page.add(ft.Text(f"שגיאה בטעינת הקבצים: {e}", color="red", size=20))
         return
+
+    # טעינת קובץ משרות פתוחות
+    # מבנה: שורה 0 = תפקידים (col 1+), עמודה 0 = מחלקות (שורה 1+), col 1 = פרטי קשר
+    # תא עם מספר >= 1 = יש משרות פתוחות, אחרת מסוננת
+    open_positions_set = [None]  # list wrapper for mutability in nested functions
+    df_open_ref = [None]
+
+    def parse_open_positions(df_op):
+        result = set()
+        roles_row = df_op.iloc[0, 1:].tolist()
+        for row_idx in range(1, len(df_op)):
+            dept = str(df_op.iloc[row_idx, 0]).strip()
+            if not dept or dept == 'nan':
+                continue
+            for col_offset, role in enumerate(roles_row):
+                if pd.isna(role):
+                    continue
+                role_clean = str(role).strip()
+                val = df_op.iloc[row_idx, col_offset + 1]
+                try:
+                    num = float(val)
+                    if num >= 1:
+                        result.add((dept, role_clean))
+                except (ValueError, TypeError):
+                    pass
+        return result
+
+    try:
+        df_open_loaded = pd.read_excel(open_positions_path, header=None)
+        df_open_ref[0] = df_open_loaded
+        open_positions_set[0] = parse_open_positions(df_open_loaded)
+    except Exception:
+        pass
 
     df_data.columns = df_data.columns.str.strip()
     df_profiles.columns = df_profiles.columns.str.strip()
@@ -207,6 +241,7 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("מחלקה", weight="bold")),
             ft.DataColumn(ft.Text("תפקיד", weight="bold")),
             ft.DataColumn(ft.Text("טווח שכר", weight="bold")),
+            ft.DataColumn(ft.Text("משרות פתוחות", weight="bold")),
         ],
         rows=[]
     )
@@ -282,6 +317,22 @@ def main(page: ft.Page):
                     filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
 
         filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
+
+        # סינון לפי משרות פתוחות – אם הקובץ נטען, מציגים רק (מחלקה, תפקיד) שיש להם >= 1 משרה
+        if open_positions_set[0] is not None:
+            def has_open_position(row):
+                dept = str(row['מחלקה']).strip()
+                role = str(row['תפקיד']).strip()
+                # בדיקה ישירה
+                if (dept, role) in open_positions_set[0]:
+                    return True
+                # בדיקה חלקית – אם התפקיד בפרופיל מכיל חלק מהשם שבקובץ המשרות
+                for (op_dept, op_role) in open_positions_set[0]:
+                    if op_dept == dept and (op_role in role or role in op_role):
+                        return True
+                return False
+            filtered_df = filtered_df[filtered_df.apply(has_open_position, axis=1)]
+
         results_title.value = f"תוצאות (תפקידים מתאימים): {len(filtered_df)}"
 
         rows = []
@@ -295,11 +346,40 @@ def main(page: ft.Page):
             else:
                 salary_str = f"{min_s} ₪ לשעה"
 
+            # חישוב כמות משרות פתוחות
+            open_count_str = "-"
+            if open_positions_set[0] is not None and df_open_ref[0] is not None:
+                dept = str(row['מחלקה']).strip()
+                role = str(row['תפקיד']).strip()
+                total = 0
+                try:
+                    df_open = df_open_ref[0]
+                    roles_row_op = df_open.iloc[0, 1:].tolist()
+                    for row_idx in range(1, len(df_open)):
+                        op_dept = str(df_open.iloc[row_idx, 0]).strip()
+                        if op_dept != dept:
+                            continue
+                        for col_offset, op_role in enumerate(roles_row_op):
+                            if pd.isna(op_role):
+                                continue
+                            op_role_clean = str(op_role).strip()
+                            if op_role_clean == role or op_role_clean in role or role in op_role_clean:
+                                val = df_open.iloc[row_idx, col_offset + 1]
+                                try:
+                                    total += int(float(val))
+                                except (ValueError, TypeError):
+                                    pass
+                except Exception:
+                    pass
+                if total > 0:
+                    open_count_str = str(total)
+
             rows.append(
                 ft.DataRow(cells=[
                     ft.DataCell(ft.Text(str(row['מחלקה']))),
                     ft.DataCell(ft.Text(str(row['תפקיד']))),
                     ft.DataCell(ft.Text(salary_str)),
+                    ft.DataCell(ft.Text(open_count_str)),
                 ])
             )
 
