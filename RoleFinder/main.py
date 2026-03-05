@@ -16,20 +16,37 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.window.maximized = True
 
-    # 1. טעינת נתונים
-    try:
-        df_data = pd.read_excel(data_path)
-        df_profiles = pd.read_excel(profiles_path)
-    except Exception as e:
-        page.add(ft.Text(f"שגיאה בטעינת הקבצים: {e}", color="red", size=20))
-        return
-
-    # טעינת קובץ משרות פתוחות
-    # מבנה: שורה 0 = תפקידים (col 1+), עמודה 0 = מחלקות (שורה 1+), col 1 = פרטי קשר
-    # תא עם מספר >= 1 = יש משרות פתוחות, אחרת מסוננת
-    open_positions_set = [None]  # list wrapper for mutability in nested functions
+    # ---- מצב גלובלי ----
+    df_data_ref = [None]
+    df_profiles_ref = [None]
+    open_positions_set = [None]
     df_open_ref = [None]
 
+    # ---- הודעת סטטוס ----
+    status_bar = ft.Container(
+        content=ft.Text("", color=ft.Colors.WHITE, weight="bold", size=14, text_align=ft.TextAlign.CENTER),
+        bgcolor=ft.Colors.GREEN_600,
+        border_radius=8,
+        padding=ft.Padding(16, 10, 16, 10),
+        visible=False,
+        animate_opacity=300,
+    )
+
+    def show_status(message: str, success: bool = True):
+        status_bar.content.value = message
+        status_bar.bgcolor = ft.Colors.GREEN_700 if success else ft.Colors.RED_700
+        status_bar.visible = True
+        page.update()
+        # הסתרה אוטומטית אחרי 3 שניות
+        import threading
+        def hide():
+            import time
+            time.sleep(3)
+            status_bar.visible = False
+            page.update()
+        threading.Thread(target=hide, daemon=True).start()
+
+    # ---- טעינת נתונים ----
     def parse_open_positions(df_op):
         result = set()
         roles_row = df_op.iloc[0, 1:].tolist()
@@ -50,42 +67,70 @@ def main(page: ft.Page):
                     pass
         return result
 
-    try:
-        df_open_loaded = pd.read_excel(open_positions_path, header=None)
-        df_open_ref[0] = df_open_loaded
-        open_positions_set[0] = parse_open_positions(df_open_loaded)
-    except Exception:
-        pass
+    def load_data():
+        """טוען את כל קבצי האקסל מחדש"""
+        try:
+            df_data = pd.read_excel(data_path)
+            df_profiles = pd.read_excel(profiles_path)
+        except Exception as e:
+            return False, f"שגיאה בטעינת הקבצים: {e}"
 
-    df_data.columns = df_data.columns.str.strip()
-    df_profiles.columns = df_profiles.columns.str.strip()
-    df_data.rename(columns={'אגף (מחלקה)': 'מחלקה'}, inplace=True)
+        df_data.columns = df_data.columns.str.strip()
+        df_profiles.columns = df_profiles.columns.str.strip()
+        df_data.rename(columns={'אגף (מחלקה)': 'מחלקה'}, inplace=True)
 
-    col_names = list(df_profiles.columns)
-    col_names[0] = 'מחלקה'
-    col_names[1] = 'תפקיד'
-    df_profiles.columns = col_names
-    df_profiles['מחלקה'] = df_profiles['מחלקה'].ffill()
+        col_names = list(df_profiles.columns)
+        col_names[0] = 'מחלקה'
+        col_names[1] = 'תפקיד'
+        df_profiles.columns = col_names
+        df_profiles['מחלקה'] = df_profiles['מחלקה'].ffill()
 
-    df_data['מחלקה'] = df_data['מחלקה'].astype(str).str.strip()
-    df_data['תפקיד'] = df_data['תפקיד'].astype(str).str.strip()
-    df_profiles['מחלקה'] = df_profiles['מחלקה'].astype(str).str.strip()
-    df_profiles['תפקיד'] = df_profiles['תפקיד'].astype(str).str.strip()
+        df_data['מחלקה'] = df_data['מחלקה'].astype(str).str.strip()
+        df_data['תפקיד'] = df_data['תפקיד'].astype(str).str.strip()
+        df_profiles['מחלקה'] = df_profiles['מחלקה'].astype(str).str.strip()
+        df_profiles['תפקיד'] = df_profiles['תפקיד'].astype(str).str.strip()
+        df_data['שכר'] = pd.to_numeric(df_data['שכר'], errors='coerce')
 
-    df_data['שכר'] = pd.to_numeric(df_data['שכר'], errors='coerce')
+        df_data_ref[0] = df_data
+        df_profiles_ref[0] = df_profiles
 
-    # זיהוי עמודת תחילת עבודה ב-df_data
+        try:
+            df_open_loaded = pd.read_excel(open_positions_path, header=None)
+            df_open_ref[0] = df_open_loaded
+            open_positions_set[0] = parse_open_positions(df_open_loaded)
+        except Exception:
+            df_open_ref[0] = None
+            open_positions_set[0] = None
+
+        return True, ""
+
+    # טעינה ראשונית
+    success, err_msg = load_data()
+    if not success:
+        page.add(ft.Text(err_msg, color="red", size=20))
+        return
+
+    df_data = df_data_ref[0]
+    df_profiles = df_profiles_ref[0]
+
+    # ---- זיהוי עמודות ----
     start_work_col = next((col for col in df_data.columns if 'תחילת' in col), None)
+    age_col = next((col for col in df_profiles.columns if 'גיל' in col), None)
 
-    # פונקציה לחישוב טווחי שכר על סמך df_data מסונן
+    dynamic_cols = [
+        c for c in df_profiles.columns[2:]
+        if c != age_col and c not in ['שכר_מינימום', 'שכר_מקסימום']
+    ]
+
+    # ---- טווחי שכר ----
     def compute_salary_ranges(df_source):
+        df_profiles = df_profiles_ref[0]
         min_salaries = []
         max_salaries = []
         for _, row in df_profiles.iterrows():
             dept = str(row['מחלקה']).strip()
             role_raw = str(row['תפקיד']).strip()
             dept_match = df_source['מחלקה'] == dept
-
             role_parts = [p.strip() for p in role_raw.split(',') if p.strip()]
             combined_role_match = pd.Series([False] * len(df_source), index=df_source.index)
             for part in role_parts:
@@ -94,7 +139,6 @@ def main(page: ft.Page):
                 except re.error:
                     part_match = df_source['תפקיד'].str.contains(part, regex=False, na=False)
                 combined_role_match = combined_role_match | part_match
-
             matching_rows = df_source[dept_match & combined_role_match]
             if not matching_rows.empty:
                 min_salaries.append(matching_rows['שכר'].min())
@@ -102,19 +146,14 @@ def main(page: ft.Page):
             else:
                 min_salaries.append(float('nan'))
                 max_salaries.append(float('nan'))
-
         result = df_profiles.copy()
         result['שכר_מינימום'] = min_salaries
         result['שכר_מקסימום'] = max_salaries
         return result
 
-    # 2. יצירת מסננים
+    # ---- שדות קלט ----
     min_sal_val = df_data['שכר'].min()
-    max_sal_val = df_data['שכר'].max()
     min_salary = float(min_sal_val) if pd.notna(min_sal_val) else 30.0
-    max_salary = float(max_sal_val) if pd.notna(max_sal_val) else 100.0
-    if max_salary <= min_salary:
-        max_salary = min_salary + 10.0
 
     salary_field = ft.TextField(
         label="ציפיות שכר (₪ לשעה)",
@@ -129,19 +168,11 @@ def main(page: ft.Page):
         text_align=ft.TextAlign.RIGHT,
     )
 
-    age_col = next((col for col in df_profiles.columns if 'גיל' in col), None)
-
-    dynamic_cols = [
-        c for c in df_profiles.columns[2:]
-        if c != age_col
-        and c not in ['שכר_מינימום', 'שכר_מקסימום']
-    ]
-
-    filters_dict = {}
-    filter_containers = {}  # col -> Container wrapping the control
-
     CHANGED_BORDER_COLOR = ft.Colors.ORANGE_600
     DEFAULT_BORDER_COLOR = ft.Colors.TRANSPARENT
+
+    filters_dict = {}
+    filter_containers = {}
 
     def update_filter_border(col):
         entry = filters_dict[col]
@@ -149,20 +180,17 @@ def main(page: ft.Page):
         container = filter_containers.get(col)
         if container is None:
             return
-        if entry['type'] == 'checkbox':
-            changed = ctrl.value  # default is False
-        else:
-            changed = ctrl.value != "הכל"
+        changed = ctrl.value if entry['type'] == 'checkbox' else ctrl.value != "הכל"
         container.border = ft.Border.all(2, CHANGED_BORDER_COLOR) if changed else ft.Border.all(1, DEFAULT_BORDER_COLOR)
         container.border_radius = 6
         page.update()
 
     def make_control(col):
+        df_profiles = df_profiles_ref[0]
         unique_vals = set(df_profiles[col].dropna().astype(str).str.strip())
         unique_vals = {v for v in unique_vals if v != ''}
         if unique_vals.issubset({'כן', 'לא'}):
-            def on_cb_change(e, c=col):
-                update_filter_border(c)
+            def on_cb_change(e, c=col): update_filter_border(c)
             cb = ft.Checkbox(label=col, value=False, on_change=on_cb_change)
             filters_dict[col] = {'type': 'checkbox', 'control': cb}
             container = ft.Container(content=cb, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR), border_radius=6, padding=4)
@@ -172,59 +200,44 @@ def main(page: ft.Page):
             options = [ft.DropdownOption(key="הכל", text="הכל")] + [
                 ft.DropdownOption(key=v, text=v) for v in sorted(list(unique_vals))
             ]
-            def on_dd_change(e, c=col):
-                update_filter_border(c)
+            def on_dd_change(e, c=col): update_filter_border(c)
             dd = ft.Dropdown(label=col, options=options, value="הכל", expand=True, on_select=on_dd_change)
             filters_dict[col] = {'type': 'dropdown', 'control': dd}
             container = ft.Container(content=dd, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR), border_radius=6)
             filter_containers[col] = container
             return container
- 
-    # פילטר תחילת עבודה
-    start_work_options = [
-        ft.DropdownOption(key="הכל", text="הכל"),
-        ft.DropdownOption(key="חצי שנה", text="חצי שנה"),
-    ]
+
+    # ---- פילטר תחילת עבודה ----
     start_work_dd = ft.Dropdown(
         label="תחילת עבודה",
-        options=start_work_options,
+        options=[
+            ft.DropdownOption(key="הכל", text="הכל"),
+            ft.DropdownOption(key="חצי שנה", text="חצי שנה"),
+        ],
         value="הכל"
     )
 
-    # שיוך עמודות לקטגוריות לפי מילות מפתח בשם
+    # ---- קטגוריות ----
     PERSONAL_KEYWORDS   = ['גיל', 'מין', 'גר/ה רחוק']
     HOURS_KEYWORDS      = ['שעות', 'אופי', 'טווח', 'משקלים']
-    EXPERIENCE_KEYWORDS = ['ניסיון']
-    SKILLS_KEYWORDS     = ['עברית', 'אנגלית', 'רוסית', 'רישיון', 'הנדסאי', 'מחשב', 'שרטוטים' ]
+    EXPERIENCE_KEYWORDS = ['הרכבות', 'אינטגרציה', 'הלחמות', 'בקרת איכות', 'מפעיל/ת מכונה', 'חיווט', 'מחסן']
+    SKILLS_KEYWORDS     = ['עברית', 'אנגלית', 'רוסית', 'רישיון', 'הנדסאי', 'מחשב', 'שרטוטים']
 
     def categorize(col):
         for kw in PERSONAL_KEYWORDS:
-            if kw in col:
-                return 'פרטים אישיים'
+            if kw in col: return 'פרטים אישיים'
         for kw in HOURS_KEYWORDS:
-            if kw in col:
-                return 'שעות/אופי עבודה'
+            if kw in col: return 'שעות/אופי עבודה'
         for kw in EXPERIENCE_KEYWORDS:
-            if kw in col:
-                return 'ניסיון'
+            if kw in col: return 'ניסיון'
         for kw in SKILLS_KEYWORDS:
-            if kw in col or kw in col.lower():
-                return 'כישורים'
-
+            if kw in col or kw in col.lower(): return 'כישורים'
         return 'טוב לדעת'
 
-    categories = {
-        'פרטים אישיים': [],
-        'שעות/אופי עבודה': [],
-        'ניסיון': [],
-        'כישורים': [],
-        'טוב לדעת': [],
-    }
+    categories = {'פרטים אישיים': [], 'שעות/אופי עבודה': [], 'ניסיון': [], 'כישורים': [], 'טוב לדעת': []}
 
-    # גיל שייך לפרטים אישיים
     if age_col:
         categories['פרטים אישיים'].append(make_control(age_col))
-
     for col in dynamic_cols:
         categories[categorize(col)].append(make_control(col))
 
@@ -244,8 +257,7 @@ def main(page: ft.Page):
 
     category_sections = [
         build_category_section(title, controls)
-        for title, controls in categories.items()
-        if controls
+        for title, controls in categories.items() if controls
     ]
 
     filters_panel = ft.Container(
@@ -273,7 +285,7 @@ def main(page: ft.Page):
     )
     results_title = ft.Text("תוצאות (תפקידים מתאימים):", weight="bold", size=18)
 
-    # 3. פונקציית חיפוש – רק בלחיצת כפתור
+    # ---- פונקציית חיפוש ----
     def update_table(e=None):
         try:
             expected_salary = float(salary_field.value.strip())
@@ -285,41 +297,28 @@ def main(page: ft.Page):
         except (ValueError, AttributeError):
             selected_age = 25
 
-        # סינון df_data לפי תחילת עבודה לפני חישוב טווחי שכר
-        df_source = df_data.copy()
+        df_source = df_data_ref[0].copy()
 
-        if start_work_dd.value == "חצי שנה":
-            if start_work_col:
-                cutoff_date = datetime.today() - timedelta(days=183)
+        if start_work_dd.value == "חצי שנה" and start_work_col:
+            cutoff_date = datetime.today() - timedelta(days=183)
+            def is_within_half_year(val):
+                if pd.isna(val): return True
+                try:
+                    if isinstance(val, datetime):
+                        return val >= cutoff_date
+                    parsed = pd.to_datetime(str(val).strip(), dayfirst=True, errors='coerce')
+                    return True if pd.isna(parsed) else parsed >= cutoff_date
+                except Exception:
+                    return True
+            df_source = df_source[df_source[start_work_col].apply(is_within_half_year)]
 
-                def is_within_half_year(val):
-                    if pd.isna(val):
-                        return True
-                    try:
-                        if isinstance(val, datetime):
-                            result = val >= cutoff_date
-                            return result
-                        parsed = pd.to_datetime(str(val).strip(), dayfirst=True, errors='coerce')
-                        if pd.isna(parsed):
-                            return True
-                        result = parsed >= cutoff_date
-                        return result
-                    except Exception as ex:
-                        return True
-
-                before = len(df_source)
-                df_source = df_source[df_source[start_work_col].apply(is_within_half_year)]
-
-        # חישוב טווחי שכר על בסיס df_data המסונן
         df_merged = compute_salary_ranges(df_source)
 
-        # סינון לפי שכר
         filtered_df = df_merged[
             (df_merged['שכר_מקסימום'].isna()) |
             (df_merged['שכר_מקסימום'] >= expected_salary)
         ]
 
-        # סינון לפי גיל
         if age_col:
             def is_age_in_range(age_str):
                 if pd.isna(age_str): return True
@@ -332,7 +331,6 @@ def main(page: ft.Page):
                 return True
             filtered_df = filtered_df[filtered_df[age_col].apply(is_age_in_range)]
 
-        # סינון פילטרים דינמיים
         for col, filter_data in filters_dict.items():
             ctrl = filter_data['control']
             if filter_data['type'] == 'checkbox':
@@ -344,22 +342,20 @@ def main(page: ft.Page):
 
         filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
 
-        # סינון לפי משרות פתוחות – אם הקובץ נטען, מציגים רק (מחלקה, תפקיד) שיש להם >= 1 משרה
         if open_positions_set[0] is not None:
             def has_open_position(row):
                 dept = str(row['מחלקה']).strip()
                 role = str(row['תפקיד']).strip()
-                # בדיקה ישירה
                 if (dept, role) in open_positions_set[0]:
                     return True
-                # בדיקה חלקית – אם התפקיד בפרופיל מכיל חלק מהשם שבקובץ המשרות
                 for (op_dept, op_role) in open_positions_set[0]:
                     if op_dept == dept and (op_role in role or role in op_role):
                         return True
                 return False
             filtered_df = filtered_df[filtered_df.apply(has_open_position, axis=1)]
 
-        results_title.value = f"תוצאות (תפקידים מתאימים): {len(filtered_df)}"
+        count = len(filtered_df)
+        results_title.value = f"תוצאות (תפקידים מתאימים): {count}"
 
         rows = []
         for _, row in filtered_df.iterrows():
@@ -372,7 +368,6 @@ def main(page: ft.Page):
             else:
                 salary_str = f"{min_s} ₪ לשעה"
 
-            # חישוב כמות משרות פתוחות
             open_count_str = "-"
             if open_positions_set[0] is not None and df_open_ref[0] is not None:
                 dept = str(row['מחלקה']).strip()
@@ -412,9 +407,30 @@ def main(page: ft.Page):
         result_table.rows = rows
         page.update()
 
-    # כפתור חיפוש
+        # הודעת הצלחה לחיפוש
+        show_status(f"✔ החיפוש הושלם בהצלחה — נמצאו {count} תפקידים מתאימים")
+
+    # ---- פונקציית רענון ----
+    def refresh_data(e=None):
+        refresh_btn.disabled = True
+        page.update()
+
+        ok, err = load_data()
+        if not ok:
+            show_status(f"✘ שגיאה בטעינת הנתונים: {err}", success=False)
+        else:
+            now = datetime.now().strftime("%H:%M:%S")
+            show_status(f"✔ הנתונים עודכנו בהצלחה מקבצי האקסל ({now})")
+
+        refresh_btn.disabled = False
+        page.update()
+
+    # ---- כפתורים ----
     search_button = ft.Button(
-        content=ft.Row([ft.Icon(ft.Icons.SEARCH, color=ft.Colors.WHITE), ft.Text("חפש", color=ft.Colors.WHITE)], tight=True),
+        content=ft.Row(
+            [ft.Icon(ft.Icons.SEARCH, color=ft.Colors.WHITE), ft.Text("חפש", color=ft.Colors.WHITE)],
+            tight=True
+        ),
         on_click=update_table,
         style=ft.ButtonStyle(
             bgcolor={
@@ -429,14 +445,35 @@ def main(page: ft.Page):
         ),
     )
 
-    # 4. בניית הממשק
+    refresh_btn = ft.Button(
+        content=ft.Row(
+            [ft.Icon(ft.Icons.REFRESH, color=ft.Colors.WHITE), ft.Text("רענן", color=ft.Colors.WHITE)],
+            tight=True
+        ),
+        on_click=refresh_data,
+        style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+                ft.ControlState.HOVERED: ft.Colors.BLUE_900,
+                ft.ControlState.PRESSED: ft.Colors.BLUE_300,
+            },
+            color=ft.Colors.WHITE,
+            padding=ft.Padding(20, 14, 20, 14),
+            elevation={"": 2, ft.ControlState.HOVERED: 6, ft.ControlState.PRESSED: 0},
+            shadow_color=ft.Colors.TEAL_200,
+        ),
+    )
+
+    # ---- בניית הממשק ----
     page.add(
         ft.Row(height=60, controls=[
             start_work_dd,
             salary_field,
             age_field,
-            search_button
+            search_button,
+            refresh_btn,
         ], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
+        status_bar,
         ft.Divider(),
         filters_panel,
         ft.Divider(),
