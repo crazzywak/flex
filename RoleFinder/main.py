@@ -138,21 +138,47 @@ def main(page: ft.Page):
     ]
 
     filters_dict = {}
+    filter_containers = {}  # col -> Container wrapping the control
+
+    CHANGED_BORDER_COLOR = ft.Colors.ORANGE_600
+    DEFAULT_BORDER_COLOR = ft.Colors.TRANSPARENT
+
+    def update_filter_border(col):
+        entry = filters_dict[col]
+        ctrl = entry['control']
+        container = filter_containers.get(col)
+        if container is None:
+            return
+        if entry['type'] == 'checkbox':
+            changed = ctrl.value  # default is False
+        else:
+            changed = ctrl.value != "הכל"
+        container.border = ft.Border.all(2, CHANGED_BORDER_COLOR) if changed else ft.Border.all(1, DEFAULT_BORDER_COLOR)
+        container.border_radius = 6
+        page.update()
 
     def make_control(col):
         unique_vals = set(df_profiles[col].dropna().astype(str).str.strip())
         unique_vals = {v for v in unique_vals if v != ''}
         if unique_vals.issubset({'כן', 'לא'}):
-            cb = ft.Checkbox(label=col, value=False)
+            def on_cb_change(e, c=col):
+                update_filter_border(c)
+            cb = ft.Checkbox(label=col, value=False, on_change=on_cb_change)
             filters_dict[col] = {'type': 'checkbox', 'control': cb}
-            return ft.Container(content=cb, expand=True)
+            container = ft.Container(content=cb, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR), border_radius=6, padding=4)
+            filter_containers[col] = container
+            return container
         else:
             options = [ft.DropdownOption(key="הכל", text="הכל")] + [
                 ft.DropdownOption(key=v, text=v) for v in sorted(list(unique_vals))
             ]
-            dd = ft.Dropdown(label=col, options=options, value="הכל", expand=True)
+            def on_dd_change(e, c=col):
+                update_filter_border(c)
+            dd = ft.Dropdown(label=col, options=options, value="הכל", expand=True, on_select=on_dd_change)
             filters_dict[col] = {'type': 'dropdown', 'control': dd}
-            return dd
+            container = ft.Container(content=dd, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR), border_radius=6)
+            filter_containers[col] = container
+            return container
  
     # פילטר תחילת עבודה
     start_work_options = [
@@ -166,10 +192,10 @@ def main(page: ft.Page):
     )
 
     # שיוך עמודות לקטגוריות לפי מילות מפתח בשם
-    PERSONAL_KEYWORDS   = ['גיל', 'מין', 'רישיון', 'גר/ה רחוק']
-    HOURS_KEYWORDS      = ['שעות', 'משמרת', 'משרה', 'היקף', 'אופי', 'נסיעות', 'נסיעה', 'שטח', 'עבודה מהבית', 'היברידי', 'גמיש']
+    PERSONAL_KEYWORDS   = ['גיל', 'מין', 'גר/ה רחוק']
+    HOURS_KEYWORDS      = ['שעות', 'אופי', 'טווח', 'משקלים']
     EXPERIENCE_KEYWORDS = ['ניסיון']
-    SKILLS_KEYWORDS     = ['עברית', 'אנגלית', 'רוסית', 'מחשב', 'תוכנה', 'הסמכה', 'תעודה', 'השכלה', 'לימודים', 'מקצוע', 'כלי', 'טכנולוג']
+    SKILLS_KEYWORDS     = ['עברית', 'אנגלית', 'רוסית', 'רישיון', 'הנדסאי', 'מחשב', 'שרטוטים' ]
 
     def categorize(col):
         for kw in PERSONAL_KEYWORDS:
@@ -391,9 +417,15 @@ def main(page: ft.Page):
         content=ft.Row([ft.Icon(ft.Icons.SEARCH, color=ft.Colors.WHITE), ft.Text("חפש", color=ft.Colors.WHITE)], tight=True),
         on_click=update_table,
         style=ft.ButtonStyle(
-            bgcolor=ft.Colors.BLUE_700,
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+                ft.ControlState.HOVERED: ft.Colors.BLUE_900,
+                ft.ControlState.PRESSED: ft.Colors.BLUE_300,
+            },
             color=ft.Colors.WHITE,
             padding=ft.Padding(20, 14, 20, 14),
+            elevation={"": 2, ft.ControlState.HOVERED: 6, ft.ControlState.PRESSED: 0},
+            shadow_color=ft.Colors.BLUE_200,
         ),
     )
 
