@@ -2,6 +2,7 @@ import flet as ft
 import pandas as pd
 import os
 import re
+import asyncio
 from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +16,9 @@ def main(page: ft.Page):
     page.padding = 30
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.window.maximized = True
+    
+    # 1. רקע לבן
+    page.bgcolor = ft.Colors.WHITE
 
     # ---- מצב גלובלי ----
     df_data_ref = [None]
@@ -22,29 +26,48 @@ def main(page: ft.Page):
     open_positions_set = [None]
     df_open_ref = [None]
 
-    # ---- הודעת סטטוס ----
+    # ---- הודעת סטטוס ואנימציה ----
+    cat_container = ft.Container(
+        content=ft.Image(src=os.path.join(BASE_DIR, "cat.gif"), width=50, height=50),
+        alignment=ft.Alignment.CENTER_RIGHT, 
+        animate=ft.Animation(2000, ft.AnimationCurve.LINEAR), # 8-second slow walk
+        visible=False,
+        height=50,
+    )
+
     status_bar = ft.Container(
         content=ft.Text("", color=ft.Colors.WHITE, weight="bold", size=14, text_align=ft.TextAlign.CENTER),
         bgcolor=ft.Colors.GREEN_600,
         border_radius=8,
         padding=ft.Padding(16, 10, 16, 10),
         visible=False,
-        animate_opacity=300,
+        # animate_opacity=300,
     )
 
+    def show_loading():
+        # 1. Snap the cat back to the right side instantly
+        cat_container.alignment = ft.Alignment.CENTER_RIGHT
+        cat_container.visible = True
+        status_bar.visible = False
+        page.update()
+
+        # # 2. Trigger the walk safely in the background
+        async def trigger_walk():
+            await asyncio.sleep(0.1)
+            cat_container.animate = ft.Animation(10000, ft.AnimationCurve.LINEAR)
+            cat_container.alignment = ft.Alignment.CENTER_LEFT
+            page.update()
+
+        page.run_task(trigger_walk)
+
     def show_status(message: str, success: bool = True):
+        # 1. Hide the cat and show the message
+    
+        cat_container.visible = False
         status_bar.content.value = message
         status_bar.bgcolor = ft.Colors.GREEN_700 if success else ft.Colors.RED_700
         status_bar.visible = True
         page.update()
-        # הסתרה אוטומטית אחרי 3 שניות
-        import threading
-        def hide():
-            import time
-            time.sleep(3)
-            status_bar.visible = False
-            page.update()
-        threading.Thread(target=hide, daemon=True).start()
 
     # ---- טעינת נתונים ----
     def parse_open_positions(df_op):
@@ -123,7 +146,8 @@ def main(page: ft.Page):
     ]
 
     # ---- טווחי שכר ----
-    def compute_salary_ranges(df_source):
+    async def compute_salary_ranges(df_source):
+        await asyncio.sleep(0.1)
         df_profiles = df_profiles_ref[0]
         min_salaries = []
         max_salaries = []
@@ -287,143 +311,165 @@ def main(page: ft.Page):
 
     # ---- פונקציית חיפוש ----
     def update_table(e=None):
-        try:
-            expected_salary = float(salary_field.value.strip())
-        except (ValueError, AttributeError):
-            expected_salary = min_salary
+        show_loading() # מציג את החתול טוען
+        search_button.disabled = True
+        refresh_btn.disabled = True
+        
+        async def do_search():
+            await asyncio.sleep(0.1)
+            try:
+                expected_salary = float(salary_field.value.strip())
+            except (ValueError, AttributeError):
+                expected_salary = min_salary
 
-        try:
-            selected_age = int(age_field.value.strip())
-        except (ValueError, AttributeError):
-            selected_age = 25
+            try:
+                selected_age = int(age_field.value.strip())
+            except (ValueError, AttributeError):
+                selected_age = 25
 
-        df_source = df_data_ref[0].copy()
+            df_source = df_data_ref[0].copy()
 
-        if start_work_dd.value == "חצי שנה" and start_work_col:
-            cutoff_date = datetime.today() - timedelta(days=183)
-            def is_within_half_year(val):
-                if pd.isna(val): return True
-                try:
-                    if isinstance(val, datetime):
-                        return val >= cutoff_date
-                    parsed = pd.to_datetime(str(val).strip(), dayfirst=True, errors='coerce')
-                    return True if pd.isna(parsed) else parsed >= cutoff_date
-                except Exception:
-                    return True
-            df_source = df_source[df_source[start_work_col].apply(is_within_half_year)]
-
-        df_merged = compute_salary_ranges(df_source)
-
-        filtered_df = df_merged[
-            (df_merged['שכר_מקסימום'].isna()) |
-            (df_merged['שכר_מקסימום'] >= expected_salary)
-        ]
-
-        if age_col:
-            def is_age_in_range(age_str):
-                if pd.isna(age_str): return True
-                try:
-                    parts = str(age_str).split('-')
-                    if len(parts) == 2:
-                        return int(parts[0].strip()) <= selected_age <= int(parts[1].strip())
-                except:
-                    pass
-                return True
-            filtered_df = filtered_df[filtered_df[age_col].apply(is_age_in_range)]
-
-        for col, filter_data in filters_dict.items():
-            ctrl = filter_data['control']
-            if filter_data['type'] == 'checkbox':
-                if ctrl.value:
-                    filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == 'כן']
-            elif filter_data['type'] == 'dropdown':
-                if ctrl.value != "הכל":
-                    filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
-
-        filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
-
-        if open_positions_set[0] is not None:
-            def has_open_position(row):
-                dept = str(row['מחלקה']).strip()
-                role = str(row['תפקיד']).strip()
-                if (dept, role) in open_positions_set[0]:
-                    return True
-                for (op_dept, op_role) in open_positions_set[0]:
-                    if op_dept == dept and (op_role in role or role in op_role):
+            if start_work_dd.value == "חצי שנה" and start_work_col:
+                cutoff_date = datetime.today() - timedelta(days=183)
+                def is_within_half_year(val):
+                    if pd.isna(val): return True
+                    try:
+                        if isinstance(val, datetime):
+                            return val >= cutoff_date
+                        parsed = pd.to_datetime(str(val).strip(), dayfirst=True, errors='coerce')
+                        return True if pd.isna(parsed) else parsed >= cutoff_date
+                    except Exception:
                         return True
-                return False
-            filtered_df = filtered_df[filtered_df.apply(has_open_position, axis=1)]
+                df_source = df_source[df_source[start_work_col].apply(is_within_half_year)]
 
-        count = len(filtered_df)
-        results_title.value = f"תוצאות (תפקידים מתאימים): {count}"
+            df_merged = await compute_salary_ranges(df_source)
 
-        rows = []
-        for _, row in filtered_df.iterrows():
-            min_s = f"{int(row['שכר_מינימום'])}" if not pd.isna(row['שכר_מינימום']) else "לא ידוע"
-            max_s = f"{int(row['שכר_מקסימום'])}" if not pd.isna(row['שכר_מקסימום']) else "לא ידוע"
-            if min_s == "לא ידוע":
-                salary_str = "לא ידוע"
-            elif min_s != max_s:
-                salary_str = f"{min_s} ₪ - {max_s} ₪ לשעה"
-            else:
-                salary_str = f"{min_s} ₪ לשעה"
+            filtered_df = df_merged[
+                (df_merged['שכר_מקסימום'].isna()) |
+                (df_merged['שכר_מקסימום'] >= expected_salary)
+            ]
 
-            open_count_str = "-"
-            if open_positions_set[0] is not None and df_open_ref[0] is not None:
-                dept = str(row['מחלקה']).strip()
-                role = str(row['תפקיד']).strip()
-                total = 0
-                try:
-                    df_open = df_open_ref[0]
-                    roles_row_op = df_open.iloc[0, 1:].tolist()
-                    for row_idx in range(1, len(df_open)):
-                        op_dept = str(df_open.iloc[row_idx, 0]).strip()
-                        if op_dept != dept:
-                            continue
-                        for col_offset, op_role in enumerate(roles_row_op):
-                            if pd.isna(op_role):
+            if age_col:
+                def is_age_in_range(age_str):
+                    if pd.isna(age_str): return True
+                    try:
+                        parts = str(age_str).split('-')
+                        if len(parts) == 2:
+                            return int(parts[0].strip()) <= selected_age <= int(parts[1].strip())
+                    except:
+                        pass
+                    return True
+                filtered_df = filtered_df[filtered_df[age_col].apply(is_age_in_range)]
+
+            for col, filter_data in filters_dict.items():
+                ctrl = filter_data['control']
+                if filter_data['type'] == 'checkbox':
+                    if ctrl.value:
+                        filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == 'כן']
+                elif filter_data['type'] == 'dropdown':
+                    if ctrl.value != "הכל":
+                        filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
+
+            filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
+
+            if open_positions_set[0] is not None:
+                def has_open_position(row):
+                    dept = str(row['מחלקה']).strip()
+                    role = str(row['תפקיד']).strip()
+                    if (dept, role) in open_positions_set[0]:
+                        return True
+                    for (op_dept, op_role) in open_positions_set[0]:
+                        if op_dept == dept and (op_role in role or role in op_role):
+                            return True
+                    return False
+                filtered_df = filtered_df[filtered_df.apply(has_open_position, axis=1)]
+
+            count = len(filtered_df)
+            results_title.value = f"תוצאות (תפקידים מתאימים): {count}"
+
+            rows = []
+            for _, row in filtered_df.iterrows():
+                min_s = f"{int(row['שכר_מינימום'])}" if not pd.isna(row['שכר_מינימום']) else "לא ידוע"
+                max_s = f"{int(row['שכר_מקסימום'])}" if not pd.isna(row['שכר_מקסימום']) else "לא ידוע"
+                if min_s == "לא ידוע":
+                    salary_str = "לא ידוע"
+                elif min_s != max_s:
+                    salary_str = f"{min_s} ₪ - {max_s} ₪ לשעה"
+                else:
+                    salary_str = f"{min_s} ₪ לשעה"
+
+                open_count_str = "-"
+                if open_positions_set[0] is not None and df_open_ref[0] is not None:
+                    dept = str(row['מחלקה']).strip()
+                    role = str(row['תפקיד']).strip()
+                    total = 0
+                    try:
+                        df_open = df_open_ref[0]
+                        roles_row_op = df_open.iloc[0, 1:].tolist()
+                        for row_idx in range(1, len(df_open)):
+                            op_dept = str(df_open.iloc[row_idx, 0]).strip()
+                            if op_dept != dept:
                                 continue
-                            op_role_clean = str(op_role).strip()
-                            if op_role_clean == role or op_role_clean in role or role in op_role_clean:
-                                val = df_open.iloc[row_idx, col_offset + 1]
-                                try:
-                                    total += int(float(val))
-                                except (ValueError, TypeError):
-                                    pass
-                except Exception:
-                    pass
-                if total > 0:
-                    open_count_str = str(total)
+                            for col_offset, op_role in enumerate(roles_row_op):
+                                if pd.isna(op_role):
+                                    continue
+                                op_role_clean = str(op_role).strip()
+                                if op_role_clean == role or op_role_clean in role or role in op_role_clean:
+                                    val = df_open.iloc[row_idx, col_offset + 1]
+                                    try:
+                                        total += int(float(val))
+                                    except (ValueError, TypeError):
+                                        pass
+                    except Exception:
+                        pass
+                    if total > 0:
+                        open_count_str = str(total)
 
-            rows.append(
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(str(row['מחלקה']))),
-                    ft.DataCell(ft.Text(str(row['תפקיד']))),
-                    ft.DataCell(ft.Text(salary_str)),
-                    ft.DataCell(ft.Text(open_count_str)),
-                ])
-            )
+                rows.append(
+                    ft.DataRow(cells=[
+                        ft.DataCell(ft.Text(str(row['מחלקה']))),
+                        ft.DataCell(ft.Text(str(row['תפקיד']))),
+                        ft.DataCell(ft.Text(salary_str)),
+                        ft.DataCell(ft.Text(open_count_str)),
+                    ])
+                )
 
-        result_table.rows = rows
-        page.update()
+            result_table.rows = rows
+            search_button.disabled = False
+            refresh_btn.disabled = False
+            page.update()
 
-        # הודעת הצלחה לחיפוש
-        show_status(f"✔ החיפוש הושלם בהצלחה — נמצאו {count} תפקידים מתאימים")
+            # הודעת הצלחה ומעלים את החתול
+            show_status(f"✔ החיפוש הושלם בהצלחה — נמצאו {count} תפקידים מתאימים")
+
+        page.run_task(do_search)
 
     # ---- פונקציית רענון ----
     def refresh_data(e=None):
+        # 1. Show the cat and disable the button IMMEDIATELY on the main thread
+        show_loading()
+        search_button.disabled = True
         refresh_btn.disabled = True
-        page.update()
 
-        ok, err = load_data()
-        if not ok:
-            show_status(f"✘ שגיאה בטעינת הנתונים: {err}", success=False)
-        else:
-            now = datetime.now().strftime("%H:%M:%S")
-            show_status(f"✔ הנתונים עודכנו בהצלחה מקבצי האקסל ({now})")
+        # 2. Define the heavy work
+        async def do_refresh():
+            await asyncio.sleep(0.1)
+            # Run the heavy Excel loading
+            ok, err = await asyncio.to_thread(load_data)            
 
-        refresh_btn.disabled = False
-        page.update()
+            # When finished, update the UI
+            if not ok:
+                show_status(f"✘ שגיאה בטעינת הנתונים: {err}", success=False)
+            else:
+                now = datetime.now().strftime("%H:%M:%S")
+                show_status(f"✔ הנתונים עודכנו בהצלחה מקבצי האקסל ({now})")
+
+            search_button.disabled = False
+            refresh_btn.disabled = False
+            page.update()
+
+        # 3. Launch the heavy work in the background!
+        page.run_task(do_refresh)
 
     # ---- כפתורים ----
     search_button = ft.Button(
@@ -473,6 +519,7 @@ def main(page: ft.Page):
             search_button,
             refresh_btn,
         ], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
+        cat_container, # הוספת קונטיינר החתול
         status_bar,
         ft.Divider(),
         filters_panel,
