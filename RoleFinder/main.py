@@ -158,10 +158,7 @@ def main(page: ft.Page):
             role_parts = [p.strip() for p in role_raw.split(',') if p.strip()]
             combined_role_match = pd.Series([False] * len(df_source), index=df_source.index)
             for part in role_parts:
-                try:
-                    part_match = df_source['תפקיד'].str.contains(part, regex=True, flags=re.IGNORECASE, na=False)
-                except re.error:
-                    part_match = df_source['תפקיד'].str.contains(part, regex=False, na=False)
+                part_match = df_source['תפקיד'] == part
                 combined_role_match = combined_role_match | part_match
             matching_rows = df_source[dept_match & combined_role_match]
             if not matching_rows.empty:
@@ -375,12 +372,13 @@ def main(page: ft.Page):
             if open_positions_set[0] is not None:
                 def has_open_position(row):
                     dept = str(row['מחלקה']).strip()
-                    role = str(row['תפקיד']).strip()
-                    if (dept, role) in open_positions_set[0]:
-                        return True
-                    for (op_dept, op_role) in open_positions_set[0]:
-                        if op_dept == dept and (op_role in role or role in op_role):
+                    role_aliases = [p.strip() for p in str(row['תפקיד']).split(',') if p.strip()]
+                    for role in role_aliases:
+                        if (dept, role) in open_positions_set[0]:
                             return True
+                        for (op_dept, op_role) in open_positions_set[0]:
+                            if op_dept == dept and (op_role in role or role in op_role):
+                                return True
                     return False
                 filtered_df = filtered_df[filtered_df.apply(has_open_position, axis=1)]
 
@@ -401,7 +399,7 @@ def main(page: ft.Page):
                 open_count_str = "-"
                 if open_positions_set[0] is not None and df_open_ref[0] is not None:
                     dept = str(row['מחלקה']).strip()
-                    role = str(row['תפקיד']).strip()
+                    role_aliases = [p.strip() for p in str(row['תפקיד']).split(',') if p.strip()]
                     total = 0
                     try:
                         df_open = df_open_ref[0]
@@ -414,12 +412,14 @@ def main(page: ft.Page):
                                 if pd.isna(op_role):
                                     continue
                                 op_role_clean = str(op_role).strip()
-                                if op_role_clean == role or op_role_clean in role or role in op_role_clean:
-                                    val = df_open.iloc[row_idx, col_offset + 1]
-                                    try:
-                                        total += int(float(val))
-                                    except (ValueError, TypeError):
-                                        pass
+                                for role in role_aliases:
+                                    if op_role_clean == role:
+                                        val = df_open.iloc[row_idx, col_offset + 1]
+                                        try:
+                                            total += int(float(val))
+                                        except (ValueError, TypeError):
+                                            pass
+                                        break  # avoid double-counting same cell for multiple aliases
                     except Exception:
                         pass
                     if total > 0:
