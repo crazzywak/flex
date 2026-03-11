@@ -224,13 +224,13 @@ def main(page: ft.Page):
             def on_dd_change(e, c=col): update_filter_border(c)
             dd = ft.Dropdown(label=col, options=options, value="הכל", expand=True, on_select=on_dd_change)
             filters_dict[col] = {'type': 'dropdown', 'control': dd}
-            container = ft.Container(content=dd, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR), border_radius=6)
+            container = ft.Container(content=dd, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR))
             filter_containers[col] = container
             return container
 
-    # ---- פילטר תחילת עבודה ----
+    # ---- פילטר תקופת טווח שכר ----
     start_work_dd = ft.Dropdown(
-        label="תחילת עבודה",
+        label="תקופת טווח שכר",
         options=[
             ft.DropdownOption(key="הכל", text="הכל"),
             ft.DropdownOption(key="חצי שנה", text="חצי שנה"),
@@ -267,7 +267,7 @@ def main(page: ft.Page):
             return None
         return ft.Container(
             content=ft.Column([
-                ft.Text(title, weight="bold", size=14, color=ft.Colors.BLUE_800),
+                ft.Text(title, font_family='assistant', weight="bold", size=16, color=ft.Colors.BLUE_800),
                 ft.Column(controls, width=200, spacing=10),
             ], spacing=8),
             padding=ft.Padding(12, 10, 12, 10),
@@ -510,14 +510,18 @@ def main(page: ft.Page):
         ),
     )
 
+    logo_img = ft.Image(
+        src="logo.png",
+    )
+
     # ---- בניית הממשק ----
     page.add(
         ft.Row(height=60, controls=[
-            start_work_dd,
             salary_field,
             age_field,
             search_button,
             refresh_btn,
+            logo_img,
         ], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
         cat_container, # הוספת קונטיינר החתול
         status_bar,
@@ -525,6 +529,7 @@ def main(page: ft.Page):
         filters_panel,
         ft.Divider(),
         results_title,
+        start_work_dd,
         ft.ListView([result_table], expand=True)
     )
 
