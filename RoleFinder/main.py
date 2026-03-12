@@ -10,6 +10,9 @@ data_path = os.path.join(BASE_DIR, "data.xlsx")
 profiles_path = os.path.join(BASE_DIR, "job profiles.xlsx")
 open_positions_path = os.path.join(BASE_DIR, "мисрот птухот.xlsx")
 
+# Constants
+ALL_OPTION = "לא משנה"
+
 def main(page: ft.Page):
     page.title = "Role Finder - מערכת איתור תפקידים"
     page.rtl = True
@@ -181,12 +184,14 @@ def main(page: ft.Page):
         value=str(int(min_salary)),
         keyboard_type=ft.KeyboardType.NUMBER,
         text_align=ft.TextAlign.RIGHT,
+        expand=True
     )
     age_field = ft.TextField(
         label="גיל מועמד",
         value="25",
         keyboard_type=ft.KeyboardType.NUMBER,
         text_align=ft.TextAlign.RIGHT,
+        expand=True
     )
 
     CHANGED_BORDER_COLOR = ft.Colors.ORANGE_600
@@ -201,15 +206,14 @@ def main(page: ft.Page):
         container = filter_containers.get(col)
         if container is None:
             return
-        changed = ctrl.value if entry['type'] == 'checkbox' else ctrl.value != "הכל"
+        changed = ctrl.value if entry['type'] == 'checkbox' else ctrl.value != ALL_OPTION
         container.border = ft.Border.all(2, CHANGED_BORDER_COLOR) if changed else ft.Border.all(1, DEFAULT_BORDER_COLOR)
-        container.border_radius = 6
         page.update()
 
     def make_control(col):
         df_profiles = df_profiles_ref[0]
         unique_vals = set(df_profiles[col].dropna().astype(str).str.strip())
-        unique_vals = {v for v in unique_vals if v != ''}
+        unique_vals = {v for v in unique_vals if v != '' and v != 'לא משנה'}
         if unique_vals.issubset({'כן', 'לא'}):
             def on_cb_change(e, c=col): update_filter_border(c)
             cb = ft.Checkbox(label=col, value=False, on_change=on_cb_change)
@@ -218,11 +222,11 @@ def main(page: ft.Page):
             filter_containers[col] = container
             return container
         else:
-            options = [ft.DropdownOption(key="הכל", text="הכל")] + [
+            options = [ft.DropdownOption(key=ALL_OPTION, text=ALL_OPTION)] + [
                 ft.DropdownOption(key=v, text=v) for v in sorted(list(unique_vals))
             ]
             def on_dd_change(e, c=col): update_filter_border(c)
-            dd = ft.Dropdown(label=col, options=options, value="הכל", expand=True, on_select=on_dd_change)
+            dd = ft.Dropdown(label=col, options=options, value=ALL_OPTION, expand=True, on_select=on_dd_change)
             filters_dict[col] = {'type': 'dropdown', 'control': dd}
             container = ft.Container(content=dd, expand=True, border=ft.Border.all(1, DEFAULT_BORDER_COLOR))
             filter_containers[col] = container
@@ -232,10 +236,10 @@ def main(page: ft.Page):
     start_work_dd = ft.Dropdown(
         label="תקופת טווח שכר",
         options=[
-            ft.DropdownOption(key="הכל", text="הכל"),
+            ft.DropdownOption(key=ALL_OPTION, text=ALL_OPTION),
             ft.DropdownOption(key="חצי שנה", text="חצי שנה"),
         ],
-        value="הכל"
+        value=ALL_OPTION
     )
 
     # ---- קטגוריות ----
@@ -272,7 +276,6 @@ def main(page: ft.Page):
             ], spacing=8),
             padding=ft.Padding(12, 10, 12, 10),
             bgcolor=ft.Colors.WHITE,
-            border_radius=8,
             border=ft.Border.all(1, ft.Colors.BLUE_100),
         )
 
@@ -286,7 +289,6 @@ def main(page: ft.Page):
             [s for s in category_sections if s],
             spacing=12,
             vertical_alignment=ft.CrossAxisAlignment.START,
-            wrap=True,
             run_spacing=12,
         ),
         padding=15,
@@ -364,7 +366,7 @@ def main(page: ft.Page):
                     if ctrl.value:
                         filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == 'כן']
                 elif filter_data['type'] == 'dropdown':
-                    if ctrl.value != "הכל":
+                    if ctrl.value != ALL_OPTION:
                         filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
 
             filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
@@ -471,7 +473,45 @@ def main(page: ft.Page):
         # 3. Launch the heavy work in the background!
         page.run_task(do_refresh)
 
+    def reset_filters(e):
+        """Reset all filters to their default values"""
+        for col, filter_data in filters_dict.items():
+            ctrl = filter_data['control']
+            if filter_data['type'] == 'checkbox':
+                ctrl.value = False
+            elif filter_data['type'] == 'dropdown':
+                ctrl.value = ALL_OPTION
+            update_filter_border(col)
+        
+        # Reset salary and age fields to defaults
+        salary_field.value = str(int(min_salary))
+        age_field.value = "25"
+        
+        # Reset start work dropdown
+        start_work_dd.value = ALL_OPTION
+        
+        page.update()
+
     # ---- כפתורים ----
+    reset_button = ft.Button(
+        content=ft.Row(
+            [ft.Icon(ft.Icons.FILTER_NONE, color=ft.Colors.WHITE), ft.Text("אפס מסננים", color=ft.Colors.WHITE)],
+            tight=True
+        ),
+        on_click=reset_filters,
+        style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+                ft.ControlState.HOVERED: ft.Colors.BLUE_900,
+                ft.ControlState.PRESSED: ft.Colors.BLUE_300,
+            },
+            color=ft.Colors.WHITE,
+            padding=ft.Padding(20, 14, 20, 14),
+            elevation={"": 2, ft.ControlState.HOVERED: 6, ft.ControlState.PRESSED: 0},
+            shadow_color=ft.Colors.ORANGE_200,
+        ),
+    )
+
     search_button = ft.Button(
         content=ft.Row(
             [ft.Icon(ft.Icons.SEARCH, color=ft.Colors.WHITE), ft.Text("חפש", color=ft.Colors.WHITE)],
@@ -526,6 +566,7 @@ def main(page: ft.Page):
         cat_container, # הוספת קונטיינר החתול
         status_bar,
         ft.Divider(),
+        ft.Row([reset_button], alignment=ft.MainAxisAlignment.START),
         filters_panel,
         ft.Divider(),
         results_title,
