@@ -367,7 +367,40 @@ def main(page: ft.Page):
                         filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == 'כן']
                 elif filter_data['type'] == 'dropdown':
                     if ctrl.value != ALL_OPTION:
-                        filtered_df = filtered_df[filtered_df[col].astype(str).str.strip() == ctrl.value]
+                        # Build the full list of raw values accepted by the selected option.
+                        # Options may carry an "X<digits>" suffix, e.g. "good X1" or "excellent X12".
+                        # The digits refer to the 1-based positions of the other options (sorted list,
+                        # excluding ALL_OPTION) that should also be accepted.
+                        df_profiles = df_profiles_ref[0]
+                        all_raw = sorted(
+                            {str(v).strip() for v in df_profiles[col].dropna()
+                             if str(v).strip() not in ('', ALL_OPTION)}
+                        )
+
+                        def base_label(v):
+                            """Strip the X<digits> suffix and return the clean display value."""
+                            return re.sub(r'\s*X\d+$', '', v, flags=re.IGNORECASE).strip()
+
+                        def included_indices(v):
+                            """Return 0-based indices of options that v includes (always includes itself)."""
+                            own_idx = all_raw.index(v)
+                            m = re.search(r'X(\d+)$', v, flags=re.IGNORECASE)
+                            extra = []
+                            if m:
+                                extra = [int(d) - 1 for d in m.group(1)]  # digits → 0-based indices
+                            return set([own_idx] + extra)
+
+                        selected_raw = ctrl.value  # the key stored in the dropdown
+                        try:
+                            accepted_indices = included_indices(selected_raw)
+                            accepted_bases = {base_label(all_raw[i]) for i in accepted_indices if 0 <= i < len(all_raw)}
+                        except ValueError:
+                            # selected value not found in list — fall back to exact match
+                            accepted_bases = {base_label(selected_raw)}
+
+                        filtered_df = filtered_df[
+                            filtered_df[col].astype(str).str.strip().apply(base_label).isin(accepted_bases)
+                        ]
 
             filtered_df = filtered_df.drop_duplicates(subset=['מחלקה', 'תפקיד'])
 
