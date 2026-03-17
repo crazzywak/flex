@@ -13,6 +13,9 @@ open_positions_path = os.path.join(BASE_DIR, "мисрот птухот.xlsx")
 # Constants
 ALL_OPTION = "לא משנה"
 
+def clean_text(text):
+    return re.sub(r'\s*X\d+$', '', text, flags=re.IGNORECASE).strip()
+
 def main(page: ft.Page):
     page.title = "Role Finder - מערכת איתור תפקידים"
     page.rtl = True
@@ -300,7 +303,7 @@ def main(page: ft.Page):
         # 3. STANDARD SINGLE DROPDOWN HANDLER
         else:
             options = [ft.DropdownOption(key=ALL_OPTION, text=ALL_OPTION)] + [
-                ft.DropdownOption(key=v, text=re.sub(r'\s*X\d+$', '', v, flags=re.IGNORECASE)) for v in sorted(list(unique_vals))
+                ft.DropdownOption(key=v, text=clean_text(v)) for v in sorted(list(unique_vals))
             ]
             def on_dd_change(e, c=col): update_filter_border(c)
             dd = ft.Dropdown(label=col, options=options, value=ALL_OPTION, expand=True, on_select=on_dd_change)
@@ -380,6 +383,65 @@ def main(page: ft.Page):
         border=ft.Border.all(1, ft.Colors.GREY_300),
     )
 
+    # ---- פופאפ פרטי תפקיד ----
+    def show_profile_popup(profile_row):
+        """Show a dialog with all job_profiles details for the clicked row."""
+        skip_cols = {'שכר_מינימום', 'שכר_מקסימום'}
+
+        detail_rows = []
+        for col in profile_row.index:
+            if col in skip_cols:
+                continue
+            val = profile_row[col]
+            val_str = str(val).strip() if pd.notna(val) else "—"
+            if val_str in ('', 'nan', 'None'):
+                val_str = "—"
+            detail_rows.append(
+                ft.Container(
+                    content=ft.Row(
+                        [                            
+                            ft.Text(clean_text(val_str), size=13, expand=True, text_align=ft.TextAlign.RIGHT),
+                            ft.Text(f"{col}", weight="bold", size=13, color=ft.Colors.BLUE_800, width=160, text_align=ft.TextAlign.RIGHT),
+                        ],
+                        spacing=12,
+                    ),
+                    padding=ft.Padding(6, 4, 6, 4),
+                    bgcolor=ft.Colors.BLUE_50 if len(detail_rows) % 2 == 0 else ft.Colors.WHITE,
+                    border_radius=4,
+                )
+            )
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(
+                f"{profile_row.get('תפקיד', '')} — {profile_row.get('מחלקה', '')}",
+                weight="bold",
+                size=16,
+                text_align=ft.TextAlign.RIGHT,
+            ),
+            content=ft.Container(
+                content=ft.Column(
+                    detail_rows,
+                    spacing=2,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
+                width=520,
+                height=460,
+            ),
+            actions=[
+                ft.TextButton("סגור", on_click=lambda e: close_dlg(dlg)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        def close_dlg(d):
+            d.open = False
+            page.update()
+
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
     result_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("מחלקה", weight="bold")),
@@ -448,7 +510,7 @@ def main(page: ft.Page):
                         )
 
                         def base_label(v):
-                            return re.sub(r'\s*X\d+$', '', v, flags=re.IGNORECASE).strip()
+                            return clean_text(v)
 
                         def included_indices(v):
                             own_idx = all_raw.index(v)
@@ -481,7 +543,7 @@ def main(page: ft.Page):
                         )
 
                         def base_label(v):
-                            return re.sub(r'\s*X\d+$', '', v, flags=re.IGNORECASE).strip()
+                            return clean_text(v)
 
                         def included_indices(v):
                             own_idx = all_raw.index(v)
@@ -564,13 +626,21 @@ def main(page: ft.Page):
                     if total > 0:
                         open_count_str = str(total)
 
+                def make_row_handler(captured_row):
+                    def on_row_select(e):
+                        show_profile_popup(captured_row)
+                    return on_row_select
+
                 rows.append(
-                    ft.DataRow(cells=[
-                        ft.DataCell(ft.Text(str(row['מחלקה']))),
-                        ft.DataCell(ft.Text(str(row['תפקיד']))),
-                        ft.DataCell(ft.Text(salary_str)),
-                        ft.DataCell(ft.Text(open_count_str)),
-                    ])
+                    ft.DataRow(
+                        cells=[
+                            ft.DataCell(ft.Text(str(row['מחלקה']))),
+                            ft.DataCell(ft.Text(str(row['תפקיד']))),
+                            ft.DataCell(ft.Text(salary_str)),
+                            ft.DataCell(ft.Text(open_count_str)),
+                        ],
+                        on_select_change=make_row_handler(row),
+                    )
                 )
 
             result_table.rows = rows
