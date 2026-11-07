@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="ru" dir="ltr">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>מחשבון משכורת חודשי ברוטו</title>
+  <title>Калькулятор месячной зарплаты брутто</title>
 
   <!-- Apply the saved language before first paint to avoid a flash of the wrong direction -->
   <script>
     (function () {
       try {
         var lang = localStorage.getItem('calculator.lang');
-        if (lang === 'ru') {
-          document.documentElement.lang = 'ru';
-          document.documentElement.dir = 'ltr';
+        // Russian is the default; Hebrew only if the user chose it last time
+        if (lang === 'he') {
+          document.documentElement.lang = 'he';
+          document.documentElement.dir = 'rtl';
         }
       } catch (e) { /* storage unavailable */ }
     })();
@@ -200,7 +201,7 @@
         const saved = localStorage.getItem(LANG_KEY);
         if (saved && I18N[saved]) return saved;
       } catch (e) { /* storage unavailable */ }
-      return 'he';
+      return 'ru';
     }
 
     function saveLang(lang) {
